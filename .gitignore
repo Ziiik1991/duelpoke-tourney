@@ -1,0 +1,69 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+xcuserdata/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+shelf/
+
+# VS Code related
+.vscode/
+
+# Flutter/Dart related
+**/artifacts/
+**/build/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/Generated.xcconfig
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Runner.xcodeproj/project.xcworkspace
+**/ios/Runner.xcworkspace/contents.xcworkspacedata
+**/ios/Runner.xcworkspace/xcshareddata/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+# pubspec.lock should typically be committed for applications.
+
+# Android related
+**/android/**/gradle-wrapper.jar
+**/android/**/gradlew
+**/android/**/gradlew.bat
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+**/android/key.properties
+*.jks
+*.keystore
+
+# Web related - specific build outputs if needed
+**/web/build/
+
+# Ignore generated files from specific packages if necessary
+# e.g., **/*.g.dart (if using build_runner and don't want to commit generated files)
+
+# Asset Bundle artifacts
+**/build/flutter_assets/
+
+# Sensitive info example (uncomment and modify if needed)
+# secrets.json
+# .env*
+# !.env.example
