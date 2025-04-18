@@ -1,5 +1,3 @@
-// En lib/screens/tournament_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tournament_provider.dart';
@@ -17,23 +15,17 @@ class TournamentScreen extends StatefulWidget {
   State<TournamentScreen> createState() => _TournamentScreenState();
 }
 
-// --- CLASE STATE ACTUALIZADA ---
 class _TournamentScreenState extends State<TournamentScreen> {
   final TransformationController _transformationController = TransformationController();
-  // Variable para guardar la referencia al provider
   TournamentProvider? _tournamentProviderRef;
 
   @override
   void initState() {
     super.initState();
-    // Guarda la referencia al provider aquí:
     _tournamentProviderRef = context.read<TournamentProvider>();
-
-    // Añadir listener después de que el primer frame se construya
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Usar la referencia guardada o leerla de nuevo
-      final provider = _tournamentProviderRef; // O context.read<TournamentProvider>();
-      if (provider != null && mounted) { // Chequeo mounted
+      final provider = _tournamentProviderRef;
+      if (provider != null && mounted) {
         provider.addListener(_checkIfTournamentFinished);
       }
     });
@@ -41,7 +33,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
   @override
   void dispose() {
-    // Usa la referencia guardada para quitar el listener
     if (_tournamentProviderRef != null) {
       try {
          _tournamentProviderRef!.removeListener(_checkIfTournamentFinished);
@@ -53,30 +44,19 @@ class _TournamentScreenState extends State<TournamentScreen> {
     super.dispose();
   }
 
-  // Método actualizado para chequear fin y detener música
   void _checkIfTournamentFinished() {
-      // Siempre chequear 'mounted' primero
       if (!mounted) return;
-
-      // Usar la referencia guardada
       final provider = _tournamentProviderRef;
-      if (provider == null) return; // Chequeo de seguridad
+      if (provider == null) return;
 
       if (provider.isTournamentFinished) {
-          // Remover listener ANTES de navegar
           try {
              provider.removeListener(_checkIfTournamentFinished);
           } catch (e) {
               if (kDebugMode) print("Handled error removing listener before navigation: $e");
           }
-
-          // --- >>> DETENER MÚSICA DE FONDO <<< ---
-          AudioManager.instance.stopBackgroundMusic();
-
-          // Tocar sonido de victoria del torneo
-          AudioManager.instance.playWinTournamentSound();
-
-          // Chequear 'mounted' OTRA VEZ antes de la navegación
+          AudioManager.instance.stopBackgroundMusic(); // Detener música de fondo
+          AudioManager.instance.playWinTournamentSound(); // Tocar sonido de victoria
           if (mounted) {
             Navigator.pushReplacement(
               context,
@@ -85,7 +65,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
           }
       }
   }
-
 
   void _playClickSound() {
     AudioManager.instance.playClickSound();
@@ -96,7 +75,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
-        // ... (contenido del diálogo sin cambios) ...
          return AlertDialog(
               title: const Text('Confirmar Reseteo'),
               content: const Text('¿Estás seguro de que quieres reiniciar el torneo? Se perderá todo el progreso.'),
@@ -105,20 +83,18 @@ class _TournamentScreenState extends State<TournamentScreen> {
                   child: const Text('Cancelar'),
                   onPressed: () {
                      _playClickSound();
-                    Navigator.of(ctx).pop(); // Cerrar diálogo
+                    Navigator.of(ctx).pop();
                   },
                 ),
                 TextButton(
                   child: const Text('Reiniciar', style: TextStyle(color: Colors.redAccent)),
                   onPressed: () {
                      _playClickSound();
-                     Navigator.of(ctx).pop(); // Cerrar diálogo
-                     // Usar la referencia guardada o context.read si prefieres
-                     _tournamentProviderRef?.resetTournament(); // O context.read<TournamentProvider>().resetTournament();
-                     // Volver a la pantalla de bienvenida
+                     Navigator.of(ctx).pop();
+                     _tournamentProviderRef?.resetTournament();
                      Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-                        (Route<dynamic> route) => false, // Eliminar todas las rutas anteriores
+                        (Route<dynamic> route) => false,
                      );
                   },
                 ),
@@ -131,11 +107,8 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Usar un Consumer aquí para obtener el provider y escuchar cambios
     return Consumer<TournamentProvider>(
         builder: (context, provider, child) {
-           // ... (lógica inicial del build sin cambios significativos,
-           // asegurar que usa 'provider' del builder o 'context.watch') ...
            if (!provider.isTournamentActive && !provider.isTournamentFinished) {
                WidgetsBinding.instance.addPostFrameCallback((_) {
                   if(mounted) { try { Navigator.of(context).pop(); } catch (e) {} }
@@ -143,12 +116,13 @@ class _TournamentScreenState extends State<TournamentScreen> {
                return const Scaffold(body: Center(child: Text("Error: Torneo no activo.")));
            }
            if (provider.isTournamentFinished) {
+              // El listener se encarga de navegar, mostramos carga mientras
               return const Scaffold(body: Center(child: CircularProgressIndicator()));
            }
 
       return Scaffold(
         appBar: AppBar(
-          title: Text('Torneo (${provider.participantCount} Jugadores)'), // Usa provider del builder
+          title: Text('Torneo (${provider.participantCount} Jugadores)'),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -159,7 +133,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
            leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                 // ... (lógica del diálogo de salir sin cambios) ...
                   _playClickSound();
                   showDialog(
                       context: context,
@@ -171,8 +144,8 @@ class _TournamentScreenState extends State<TournamentScreen> {
                               TextButton(
                                   onPressed: () {
                                       _playClickSound();
-                                      Navigator.of(ctx).pop(); // Cierra dialogo
-                                      context.read<TournamentProvider>().resetTournament(); // Usa context.read aquí está bien
+                                      Navigator.of(ctx).pop();
+                                      context.read<TournamentProvider>().resetTournament();
                                       Navigator.of(context).pushAndRemoveUntil(
                                           MaterialPageRoute(builder: (context) => const WelcomeScreen()),
                                           (route) => false);
@@ -185,118 +158,92 @@ class _TournamentScreenState extends State<TournamentScreen> {
               },
            ),
         ),
-        body: InteractiveViewer(
-           // ... (resto del InteractiveViewer y llamada a _buildBracketLayout sin cambios) ...
-           transformationController: _transformationController,
-           minScale: 0.2,
-           maxScale: 4.0,
-           constrained: false,
-           boundaryMargin: const EdgeInsets.all(50.0),
-           child: Padding(
-               padding: const EdgeInsets.all(16.0),
-               child: _buildBracketLayout(context, provider.rounds, provider.participantCount), // Usa provider del builder
-             ),
-           ),
-           floatingActionButton: FloatingActionButton(
-             mini: true,
-             tooltip: 'Centrar Vista',
-             onPressed: () => _transformationController.value = Matrix4.identity(),
-             child: const Icon(Icons.center_focus_strong),
-           ),
-        );
-      }
-    );
+        // ---> BODY ACTUALIZADO CON FONDO <---
+        body: Container( // 1. Contenedor para el fondo
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              // --> CAMBIA ESTO POR TU IMAGEN DE FONDO DEL TORNEO <--
+              image: const AssetImage('assets/images/tournament_bg.png'), // Ejemplo! Usa tu imagen
+              fit: BoxFit.cover,
+              // Opcional: Filtro para oscurecer
+              colorFilter: ColorFilter.mode(
+                Colors.black.withOpacity(0.7), // Ajusta opacidad
+                BlendMode.darken,
+              ),
+            ),
+          ),
+          child: InteractiveViewer( // 2. InteractiveViewer como hijo
+            transformationController: _transformationController,
+            minScale: 0.2,
+            maxScale: 4.0,
+            constrained: false,
+            boundaryMargin: const EdgeInsets.all(50.0),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildBracketLayout(context, provider.rounds, provider.participantCount),
+            ),
+          ),
+        ),
+        // ---> FIN BODY ACTUALIZADO <---
+        floatingActionButton: FloatingActionButton(
+          mini: true,
+          tooltip: 'Centrar Vista',
+          onPressed: () => _transformationController.value = Matrix4.identity(),
+          child: const Icon(Icons.center_focus_strong),
+        ),
+      );
+    });
   }
 
   // --- Función para construir el Layout del Bracket ---
   Widget _buildBracketLayout(BuildContext context, List<List<Match>> rounds, int participantCount) {
-    // ... (lógica de _buildBracketLayout y los layouts específicos sin cambios) ...
-    if (rounds.isEmpty) {
-       return const Center(child: Text("Generando bracket..."));
+     if (rounds.isEmpty) {
+       return const Center(child: Text("Generando bracket...", style: TextStyle(color: Colors.white))); // Texto blanco sobre fondo oscuro
      }
      switch (participantCount) {
        case 2: return _buildLayoutFor2(rounds);
        case 4: return _buildLayoutFor4(rounds);
-       case 8: return _buildLayoutFor8(context, rounds); // Pasamos context
+       case 8: return _buildLayoutFor8(rounds);
        case 16: return _buildLayoutFor16(rounds);
-       default: return Center(child: Text("Número de participantes ($participantCount) no soportado para visualización.", textAlign: TextAlign.center));
+       default: return Center(child: Text("Número de participantes ($participantCount) no soportado.", textAlign: TextAlign.center, style: TextStyle(color: Colors.orange)));
      }
   }
 
-   // --- Layouts Específicos ---
-   // (Código de _buildLayoutFor2, _buildLayoutFor4, _buildLayoutFor8, _buildLayoutFor16 sin cambios)
-    Widget _buildLayoutFor2(List<List<Match>> rounds) {
+  // --- Layouts Específicos ---
+  Widget _buildLayoutFor2(List<List<Match>> rounds) {
      if (rounds.isEmpty || rounds[0].isEmpty) return const SizedBox.shrink();
      return Center(child: MatchWidget(match: rounds[0][0], widgetWidth: 200, nameFontSize: 14));
-    }
-    Widget _buildLayoutFor4(List<List<Match>> rounds) {
+  }
+  Widget _buildLayoutFor4(List<List<Match>> rounds) {
      if (rounds.length < 2 || rounds[0].isEmpty || rounds[1].isEmpty) return const SizedBox.shrink();
      final semiFinals = rounds[0];
      final finalMatch = rounds[1][0];
-     return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          MatchWidget(match: semiFinals[0]),
-          const SizedBox(width: 50),
-          MatchWidget(match: finalMatch, widgetWidth: 180, nameFontSize: 14),
-           const SizedBox(width: 50),
-           MatchWidget(match: semiFinals[1]),
-        ],
+     return Row( mainAxisAlignment: MainAxisAlignment.spaceEvenly, crossAxisAlignment: CrossAxisAlignment.center,
+        children: [ MatchWidget(match: semiFinals[0]), const SizedBox(width: 50), MatchWidget(match: finalMatch, widgetWidth: 180, nameFontSize: 14), const SizedBox(width: 50), MatchWidget(match: semiFinals[1]), ],
      );
-    }
-    Widget _buildLayoutFor8(BuildContext context, List<List<Match>> rounds) {
-      return Center(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          color: Colors.grey[800]?.withOpacity(0.7),
-          child: Text(
-            "Layout para 8 participantes\n¡PENDIENTE!",
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.orangeAccent, fontSize: 18),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-    Widget _buildLayoutFor16(List<List<Match>> rounds) {
-      if (rounds.length < 4) return const SizedBox.shrink();
-      final roundOf16 = rounds[0];
-      final quarterFinals = rounds[1];
-      final semiFinals = rounds[2];
-      final finalMatch = rounds[3][0];
-      Widget buildRoundColumn(List<Match> matches, {double spacing = 30.0}) {
+  }
+  Widget _buildLayoutFor8(List<List<Match>> rounds) {
+    if (rounds.length < 3) return const SizedBox.shrink();
+    final quarterFinals = rounds[0];
+    final semiFinals = rounds[1];
+    final finalMatch = rounds[2][0];
+    Widget buildRoundColumn(List<Match> matches, {double spacing = 40.0}) {
         List<Widget> columnChildren = [];
-        for (int i = 0; i < matches.length; i++) {
-            columnChildren.add(MatchWidget(match: matches[i]));
-            if (i < matches.length - 1) {
-                columnChildren.add(SizedBox(height: spacing));
-            }
-        }
-        return Column( mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: columnChildren,);
-      }
-      List<Match> getMatchesForSide(List<Match> roundMatches, bool isLeftSide) {
-        int half = (roundMatches.length / 2).ceil();
-        return isLeftSide ? roundMatches.sublist(0, half) : roundMatches.sublist(half);
-      }
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          buildRoundColumn(getMatchesForSide(roundOf16, true), spacing: 20),
-          const SizedBox(width: 40),
-          buildRoundColumn(getMatchesForSide(quarterFinals, true), spacing: 80),
-          const SizedBox(width: 40),
-          buildRoundColumn(getMatchesForSide(semiFinals, true), spacing: 180),
-          const SizedBox(width: 60),
-          MatchWidget(match: finalMatch, widgetWidth: 180, nameFontSize: 16),
-          const SizedBox(width: 60),
-          buildRoundColumn(getMatchesForSide(semiFinals, false), spacing: 180),
-          const SizedBox(width: 40),
-          buildRoundColumn(getMatchesForSide(quarterFinals, false), spacing: 80),
-          const SizedBox(width: 40),
-          buildRoundColumn(getMatchesForSide(roundOf16, false), spacing: 20),
-        ],
-      );
+        for (int i = 0; i < matches.length; i++) { columnChildren.add(MatchWidget(match: matches[i])); if (i < matches.length - 1) { columnChildren.add(SizedBox(height: spacing)); } }
+        return Column( mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: columnChildren );
     }
-}
-// --- FIN DE LA CLASE STATE ACTUALIZADA ---
+    List<Match> getMatchesForSide(List<Match> roundMatches, bool isLeftSide) { int half = (roundMatches.length / 2).ceil(); return isLeftSide ? roundMatches.sublist(0, half) : roundMatches.sublist(half); }
+    return Row( mainAxisAlignment: MainAxisAlignment.spaceEvenly, crossAxisAlignment: CrossAxisAlignment.center,
+      children: [ buildRoundColumn(getMatchesForSide(quarterFinals, true), spacing: 80), const SizedBox(width: 40), buildRoundColumn(getMatchesForSide(semiFinals, true), spacing: 0), const SizedBox(width: 50), MatchWidget(match: finalMatch, widgetWidth: 180, nameFontSize: 16), const SizedBox(width: 50), buildRoundColumn(getMatchesForSide(semiFinals, false), spacing: 0), const SizedBox(width: 40), buildRoundColumn(getMatchesForSide(quarterFinals, false), spacing: 80), ],
+    );
+  }
+  Widget _buildLayoutFor16(List<List<Match>> rounds) {
+    if (rounds.length < 4) return const SizedBox.shrink();
+    final roundOf16 = rounds[0]; final quarterFinals = rounds[1]; final semiFinals = rounds[2]; final finalMatch = rounds[3][0];
+    Widget buildRoundColumn(List<Match> matches, {double spacing = 30.0}) { List<Widget> c = []; for(int i=0;i<matches.length;i++){ c.add(MatchWidget(match:matches[i])); if(i<matches.length-1){c.add(SizedBox(height:spacing));}} return Column(mainAxisAlignment:MainAxisAlignment.center,mainAxisSize:MainAxisSize.min,children:c); }
+    List<Match> getMatchesForSide(List<Match> m, bool l){int h=(m.length/2).ceil();return l?m.sublist(0,h):m.sublist(h);}
+    return Row( mainAxisAlignment: MainAxisAlignment.spaceEvenly, crossAxisAlignment: CrossAxisAlignment.center,
+      children: [ buildRoundColumn(getMatchesForSide(roundOf16, true), spacing: 20), const SizedBox(width: 40), buildRoundColumn(getMatchesForSide(quarterFinals, true), spacing: 80), const SizedBox(width: 40), buildRoundColumn(getMatchesForSide(semiFinals, true), spacing: 180), const SizedBox(width: 60), MatchWidget(match: finalMatch, widgetWidth: 180, nameFontSize: 16), const SizedBox(width: 60), buildRoundColumn(getMatchesForSide(semiFinals, false), spacing: 180), const SizedBox(width: 40), buildRoundColumn(getMatchesForSide(quarterFinals, false), spacing: 80), const SizedBox(width: 40), buildRoundColumn(getMatchesForSide(roundOf16, false), spacing: 20), ],
+    );
+  }
+} // Fin _TournamentScreenState
