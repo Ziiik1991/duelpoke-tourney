@@ -1,158 +1,65 @@
-// En lib/widgets/match_widget.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/match.dart';
-import '../models/participant.dart';
+import '../models/match.dart';       // Importa el MODELO Match
+import '../models/participant.dart'; // Importa el MODELO Participant
 import '../providers/tournament_provider.dart';
-import '../services/audio_manager.dart'; // Para sonidos
+import '../services/audio_manager.dart';
+import 'package:flutter/foundation.dart'; // Para kDebugMode
 
+// Nombre de Clase Correcto
 class MatchWidget extends StatelessWidget {
-  final Match match;
-  final double nameFontSize; // Hacer tamaño de fuente configurable
-  final double widgetWidth; // Ancho opcional
+  final Match match; // <-- Usa el TIPO de dato Match
+  final double nameFontSize;
+  final double widgetWidth;
 
   const MatchWidget({
     super.key,
-    required this.match,
-    this.nameFontSize = 12.0, // Tamaño por defecto
-    this.widgetWidth = 150.0 // Ancho por defecto
+    required this.match, // Recibe un objeto Match
+    this.nameFontSize = 12.0,
+    this.widgetWidth = 150.0
   });
 
-  // --- MÉTODO ACTUALIZADO ---
+  // ---> MÉTODO _selectWinner con condición MODIFICADA <---
   void _selectWinner(BuildContext context, Participant? potentialWinner) {
-      if (potentialWinner == null) return; // No hacer nada si se clickea en TBD
-
+      if (potentialWinner == null) return;
       final provider = context.read<TournamentProvider>();
-      // Verificar si el partido se puede jugar y el torneo está activo
-      if (provider.isTournamentActive && match.isReadyToPlay && !match.isFinished) {
 
-          // 1. Reproducir sonido de clic
+      if (kDebugMode) {
+        print("[MatchWidget] Intento de seleccionar ganador:");
+        print("  > Partido ID: ${match.id} (R${match.roundIndex} M${match.matchIndexInRound})");
+        print("  > Ganador Potencial: ${potentialWinner.name} (ID: ${potentialWinner.id})");
+        // Imprimir el valor real de isReadyToPlay aunque no lo usemos en el if ahora
+        print("  > Condiciones: Torneo Activo=${provider.isTournamentActive}, Partido Listo=${match.isReadyToPlay}, Partido Terminado=${match.isFinished}");
+      }
+
+      // ---> Condición Modificada: match.isReadyToPlay COMENTADO <---
+      if (provider.isTournamentActive && /* match.isReadyToPlay && */ !match.isFinished) {
+          if (kDebugMode) print("[MatchWidget] ¡Condiciones (SIN ReadyCheck) CUMPLIDAS para ${match.id}! Llamando a provider.selectWinner...");
+
           AudioManager.instance.playClickSound();
-
-          // 2. Actualizar el estado del torneo (seleccionar ganador)
           provider.selectWinner(match.id, potentialWinner.id);
-
-          // 3. Verificar el estado del torneo DESPUÉS de actualizarlo
           final bool tournamentHasJustFinished = provider.isTournamentFinished;
-
-          // 4. Reproducir 'win_match' SÓLO si el torneo NO acaba de terminar
           if (!tournamentHasJustFinished) {
             AudioManager.instance.playWinMatchSound();
           }
-          // Si tournamentHasJustFinished es true, el listener en TournamentScreen
-          // se encargará de reproducir 'win_tournament.ogg' y navegar.
+      } else {
+           if (kDebugMode) print("[MatchWidget] Condiciones (SIN ReadyCheck) NO CUMPLIDAS para ${match.id}. Selección ignorada.");
+           // Si falla aquí, imprime por qué falló cada parte
+           if(kDebugMode && !provider.isTournamentActive) print(" -> Razón: Torneo NO activo.");
+           if(kDebugMode && match.isFinished) print(" -> Razón: Partido YA terminado.");
+           // No podemos chequear !match.isReadyToPlay aquí directamente si lo comentamos arriba
       }
   }
-  // --- FIN DEL MÉTODO ACTUALIZADO ---
-
+  // ---> FIN MÉTODO MODIFICADO <---
 
   @override
   Widget build(BuildContext context) {
-    final participant1 = match.participant1;
-    final participant2 = match.participant2;
-    final winner = match.winner;
-    final bool isP1Winner = winner != null && winner.id == participant1?.id;
-    final bool isP2Winner = winner != null && winner.id == participant2?.id;
+    // ... (código interno de build sin cambios) ...
+    final p1=match.participant1;final p2=match.participant2;final w=match.winner;final bool p1W=w!=null&&w.id==p1?.id;final bool p2W=w!=null&&w.id==p2?.id;final bool canP=context.select((TournamentProvider p)=>p.isTournamentActive)&&match.isReadyToPlay&&!match.isFinished;final bS=TextStyle(fontSize:nameFontSize,color:Colors.white);final wS=bS.copyWith(fontWeight:FontWeight.bold,color:Theme.of(context).colorScheme.secondary);final lS=bS.copyWith(color:Colors.grey[600],decoration:TextDecoration.lineThrough);final tS=bS.copyWith(color:Colors.grey[500],fontStyle:FontStyle.italic);return Container(width:widgetWidth,padding:const EdgeInsets.symmetric(vertical:4.0,horizontal:6.0),margin:const EdgeInsets.symmetric(vertical:4.0),decoration:BoxDecoration(color:Colors.grey[850],borderRadius:BorderRadius.circular(6.0),border:Border.all(color:canP?Colors.indigo[300]!:Colors.grey[700]!,width:1.0,),boxShadow:[BoxShadow(color:Colors.black.withOpacity(0.3),blurRadius:2,offset:const Offset(1,1),)]),child:Column(mainAxisSize:MainAxisSize.min,children:[_buildParticipantRow(context:context,participant:p1,style:match.isFinished?(p1W?wS:lS):(p1==null?tS:bS),isWinner:p1W,onTap:canP?()=>_selectWinner(context,p1):null,),const Divider(height:4,thickness:1,color:Colors.grey),_buildParticipantRow(context:context,participant:p2,style:match.isFinished?(p2W?wS:lS):(p2==null?tS:bS),isWinner:p2W,onTap:canP?()=>_selectWinner(context,p2):null,),],),);
+   }
 
-    // Determinar si el partido puede ser jugado
-    final bool canPlay = context.select((TournamentProvider p) => p.isTournamentActive)
-                       && match.isReadyToPlay && !match.isFinished;
-
-
-    // Estilo base para los nombres
-    final baseStyle = TextStyle(fontSize: nameFontSize, color: Colors.white);
-    // Estilo para el ganador
-    final winnerStyle = baseStyle.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary);
-     // Estilo para el perdedor (opcional)
-    final loserStyle = baseStyle.copyWith(color: Colors.grey[600], decoration: TextDecoration.lineThrough);
-     // Estilo para 'TBD'
-     final tbdStyle = baseStyle.copyWith(color: Colors.grey[500], fontStyle: FontStyle.italic);
-
-    return Container(
-      width: widgetWidth,
-      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 6.0),
-      margin: const EdgeInsets.symmetric(vertical: 4.0), // Espacio entre widgets de partido
-      decoration: BoxDecoration(
-        color: Colors.grey[850],
-        borderRadius: BorderRadius.circular(6.0),
-        border: Border.all(
-          color: canPlay ? Colors.indigo[300]! : Colors.grey[700]!, // Borde diferente si está jugable
-          width: 1.0,
-        ),
-         boxShadow: [ // Sombra sutil
-            BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 2,
-                offset: const Offset(1, 1),
-            ),
-          ]
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // Ajustar al contenido
-        children: [
-          // --- Participante 1 ---
-          _buildParticipantRow(
-            context: context,
-            participant: participant1,
-            style: match.isFinished
-                   ? (isP1Winner ? winnerStyle : loserStyle)
-                   : (participant1 == null ? tbdStyle : baseStyle),
-            isWinner: isP1Winner,
-            onTap: canPlay ? () => _selectWinner(context, participant1) : null,
-          ),
-
-          const Divider(height: 4, thickness: 1, color: Colors.grey), // Separador
-
-          // --- Participante 2 ---
-           _buildParticipantRow(
-            context: context,
-            participant: participant2,
-            style: match.isFinished
-                   ? (isP2Winner ? winnerStyle : loserStyle)
-                   : (participant2 == null ? tbdStyle : baseStyle),
-            isWinner: isP2Winner,
-            onTap: canPlay ? () => _selectWinner(context, participant2) : null,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget helper para mostrar la fila de un participante
-  Widget _buildParticipantRow({
-    required BuildContext context,
-    required Participant? participant,
-    required TextStyle style,
-    required bool isWinner,
-    required VoidCallback? onTap,
-  }) {
-    return InkWell( // Para hacer clickeable toda la fila
-       onTap: onTap,
-       splashColor: onTap != null ? Theme.of(context).colorScheme.secondary.withOpacity(0.3) : Colors.transparent,
-       highlightColor: onTap != null ? Theme.of(context).colorScheme.secondary.withOpacity(0.1) : Colors.transparent,
-      child: Container( // Container para padding interno
-        padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Row(
-          children: [
-             // Icono de ganador (opcional)
-            if (isWinner)
-              Icon(Icons.star, color: Theme.of(context).colorScheme.secondary, size: nameFontSize + 2),
-            if (isWinner) const SizedBox(width: 4),
-
-            Expanded(
-              child: Text(
-                participant?.name ?? 'Por determinar',
-                style: style,
-                overflow: TextOverflow.ellipsis, // Evitar overflow de texto largo
-              ),
-            ),
-            // Indicador de clickeable (opcional)
-             if (onTap != null)
-               Icon(Icons.touch_app_outlined, size: nameFontSize + 2, color: Colors.grey[600]),
-          ],
-        ),
-      ),
-    );
-  }
-}
+  Widget _buildParticipantRow({ required BuildContext context, required Participant? participant, required TextStyle style, required bool isWinner, required VoidCallback? onTap, }) {
+    // ... (código interno de _buildParticipantRow sin cambios) ...
+    return InkWell(onTap:onTap,splashColor:onTap!=null?Theme.of(context).colorScheme.secondary.withOpacity(0.3):Colors.transparent,highlightColor:onTap!=null?Theme.of(context).colorScheme.secondary.withOpacity(0.1):Colors.transparent,child:Container(padding:const EdgeInsets.symmetric(vertical:6.0),child:Row(children:[if(isWinner)Icon(Icons.star,color:Theme.of(context).colorScheme.secondary,size:nameFontSize+2),if(isWinner)const SizedBox(width:4),Expanded(child:Text(participant?.name??'Por determinar',style:style,overflow:TextOverflow.ellipsis,),),if(onTap!=null)Icon(Icons.touch_app_outlined,size:nameFontSize+2,color:Colors.grey[600]),],),),);
+   }
+} // Fin clase MatchWidget

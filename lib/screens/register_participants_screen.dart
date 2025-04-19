@@ -1,264 +1,249 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/participant.dart';
 import '../providers/tournament_provider.dart';
 import '../services/audio_manager.dart';
 import 'tournament_screen.dart';
 
 class RegisterParticipantsScreen extends StatefulWidget {
   const RegisterParticipantsScreen({super.key});
-
   @override
   State<RegisterParticipantsScreen> createState() => _RegisterParticipantsScreenState();
 }
 
 class _RegisterParticipantsScreenState extends State<RegisterParticipantsScreen> {
   final _nameController = TextEditingController();
-  final _formKey = GlobalKey<FormState>(); // Para validación opcional del TextField
-  final ScrollController _scrollController = ScrollController(); // Para scroll automático
+  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  final ScrollController _scrollController = ScrollController();
+  List<Participant> _participantsList = [];
+
+  @override
+  void initState() {
+     super.initState();
+     _participantsList = List.from(context.read<TournamentProvider>().participants);
+  }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _scrollController.dispose();
-    super.dispose();
+     _nameController.dispose();
+     _scrollController.dispose();
+     super.dispose();
   }
 
-  void _playClickSound() {
-    AudioManager.instance.playClickSound();
-  }
+  void _playClickSound() { AudioManager.instance.playClickSound(); }
 
   void _addParticipant() {
-    _playClickSound();
-    context.read<TournamentProvider>().clearError();
-
-    if (_nameController.text.trim().isNotEmpty) {
-       context.read<TournamentProvider>().addParticipant(_nameController.text);
-       _nameController.clear();
-       FocusScope.of(context).unfocus();
-
-       WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-             _scrollController.animateTo(
-                _scrollController.position.maxScrollExtent + 50,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-             );
-          }
-       });
-
-    } else {
-         ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(
-                 content: Text("Por favor, ingresa un nombre."),
-                 backgroundColor: Colors.orangeAccent,
-                 duration: Duration(seconds: 2),
-                )
-             );
-    }
+     final provider = context.read<TournamentProvider>();
+     if (provider.participantCount >= 100) {
+        ScaffoldMessenger.of(context).showSnackBar( const SnackBar( content: Text("Máximo de 100 participantes alcanzado."), backgroundColor: Colors.orangeAccent, ) );
+        return;
+     }
+     _playClickSound();
+     provider.clearError();
+     final name = _nameController.text.trim();
+     if (name.isNotEmpty) {
+        final previousCount = provider.participantCount;
+        provider.addParticipant(name);
+        if (provider.tournamentError == null && provider.participantCount > previousCount) {
+           _nameController.clear();
+           FocusScope.of(context).unfocus();
+           final newParticipant = provider.participants.last;
+           final insertIndex = _participantsList.length;
+           _participantsList.add(newParticipant);
+           _listKey.currentState?.insertItem(insertIndex, duration: const Duration(milliseconds: 300));
+           WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_scrollController.hasClients) {
+                 _scrollController.animateTo( _scrollController.position.maxScrollExtent + 80, duration: const Duration(milliseconds: 300), curve: Curves.easeOut, );
+              }
+           });
+        }
+     } else {
+        ScaffoldMessenger.of(context).showSnackBar( const SnackBar( content: Text("Ingresa un nombre válido."), backgroundColor: Colors.orangeAccent, duration: Duration(seconds: 2), ) );
+     }
   }
 
-  void _removeParticipant(String id) {
+  void _removeParticipant(Participant participantToRemove, int index) {
      _playClickSound();
-     context.read<TournamentProvider>().removeParticipant(id);
+     final provider = context.read<TournamentProvider>();
+     provider.removeParticipant(participantToRemove.id);
+     final Participant item = _participantsList.removeAt(index);
+     _listKey.currentState?.removeItem( index, (context, animation) => _buildRemovedItem(item, animation), duration: const Duration(milliseconds: 300), );
+  }
+
+  Widget _buildRemovedItem(Participant p, Animation<double> a) {
+     return FadeTransition( opacity: CurvedAnimation(parent: a, curve: Curves.easeOut), child: SlideTransition( position: Tween<Offset>( begin: const Offset(1, 0), end: Offset.zero, ).animate(CurvedAnimation(parent: a, curve: Curves.easeOut)), child: ParticipantListItem( participant: p, onRemove: () {}, isRemoving: true, ), ), );
+  }
+
+  Widget _buildAnimatedItem(BuildContext context, int index, Animation<double> animation) {
+     if (index < 0 || index >= _participantsList.length) { return const SizedBox.shrink(); }
+     final p = _participantsList[index];
+     return FadeTransition( opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn), child: SlideTransition( position: Tween<Offset>( begin: const Offset(0, 0.5), end: Offset.zero, ).animate(CurvedAnimation(parent: animation, curve: Curves.easeIn)), child: ParticipantListItem( participant: p, onRemove: () => _removeParticipant(p, index), ), ), );
   }
 
   void _startTournament() {
      _playClickSound();
-     context.read<TournamentProvider>().clearError();
-     context.read<TournamentProvider>().startTournament();
-
-      final provider = context.read<TournamentProvider>();
-      if (provider.tournamentError == null && provider.isTournamentActive) {
-         Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const TournamentScreen()),
-        );
-      }
+     final provider = context.read<TournamentProvider>();
+     provider.clearError();
+     provider.startTournament();
+     if (provider.tournamentError == null && provider.isTournamentActive) {
+        Navigator.pushReplacement( context, MaterialPageRoute(builder: (context) => const TournamentScreen()), );
+     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<TournamentProvider>();
+    final participantCount = provider.participantCount;
+    final bool canStart = provider.canStartTournament();
+    final bool canAddMore = participantCount < 100;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bottomButtonWidth = screenWidth * 0.6;
+    const double inputFontSize = 18.0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registrar Participantes'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-             _playClickSound();
-             Navigator.of(context).pop();
-          },
-        ),
+        leading: IconButton( icon: const Icon(Icons.arrow_back), onPressed: () { _playClickSound(); Navigator.of(context).pop(); }, ),
       ),
-      // ---> CONTENEDOR CON FONDO <---
       body: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            // --> CAMBIA ESTO POR TU IMAGEN DE FONDO DE REGISTRO <--
-            image: const AssetImage('assets/images/register_background.png'), // Ejemplo! Usa tu imagen
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode( // Filtro para oscurecer un poco
-              Colors.black.withOpacity(0.6),
-              BlendMode.darken,
-            ),
-          ),
-        ),
-        child: Padding( // El Padding original ahora es hijo
-          padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration( image: DecorationImage( image: const AssetImage('assets/images/register_background.png'), fit: BoxFit.cover, colorFilter: ColorFilter.mode( Colors.black.withOpacity(0.65), BlendMode.darken, ), ),),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- Campo de Entrada y Botón Añadir ---
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Form(
-                       key: _formKey,
-                      child: TextFormField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre del Participante',
-                          hintText: 'Ingresa un nombre...',
-                          // Quitar borde por defecto si se usa fillColor
-                          // border: OutlineInputBorder(),
+                    flex: 3,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Form(
+                            key: _formKey,
+                            child: TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration( labelText: 'Nombre Participante', hintText: 'Ingresa...', filled: true, fillColor: Colors.white.withOpacity(0.1), border: OutlineInputBorder( borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none, ), labelStyle: TextStyle(color: Colors.white70, fontSize: 14), hintStyle: TextStyle(color: Colors.white54, fontSize: 14), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14) ),
+                              style: TextStyle( color: Colors.white, fontSize: inputFontSize ),
+                              onFieldSubmitted: (_) => canAddMore ? _addParticipant() : null,
+                            ),
+                          ),
                         ),
-                         onFieldSubmitted: (_) => _addParticipant(),
-                      ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: canAddMore ? _addParticipant : null,
+                          style: ElevatedButton.styleFrom( padding: const EdgeInsets.all(12), shape: const CircleBorder(), backgroundColor: canAddMore ? Theme.of(context).colorScheme.secondary : Colors.grey[700], ),
+                          child: Icon( Icons.add, size: 20, color: canAddMore ? Theme.of(context).colorScheme.onSecondary : Colors.grey[400], ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Padding(
-                     padding: const EdgeInsets.only(top: 8.0),
-                    child: ElevatedButton(
-                      onPressed: _addParticipant,
-                      style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12)
-                          ),
-                      child: const Icon(Icons.add),
-                    ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                     flex: 2,
+                     child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                        decoration: BoxDecoration( color: Colors.black.withOpacity(0.5), borderRadius: BorderRadius.circular(8), ),
+                        child: Column(
+                           mainAxisSize: MainAxisSize.min,
+                           children: [
+                             FittedBox( fit: BoxFit.scaleDown, child: Text( 'Listos: $participantCount / 100', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold), ), ),
+                             const SizedBox(height: 4),
+                             FittedBox( fit: BoxFit.scaleDown, child: Text( 'Min: 3', style: TextStyle(fontSize: 11, color: participantCount < 3 ? Colors.orangeAccent : Colors.grey[400]), ) ),
+                             const SizedBox(height: 5),
+                             LinearProgressIndicator( value: participantCount / 100.0, backgroundColor: Colors.grey[700], valueColor: AlwaysStoppedAnimation<Color>( participantCount < 3 ? Colors.redAccent : (participantCount < 100 ? Colors.indigoAccent : Colors.greenAccent) ), minHeight: 5, borderRadius: BorderRadius.circular(3), ),
+                            ]
+                         )
+                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-
-               // --- Mostrar Error del Provider ---
-              Consumer<TournamentProvider>(
-                builder: (context, provider, child) {
-                  if (provider.tournamentError != null) {
-                    Future.delayed(const Duration(seconds: 4), () {
-                       if (provider.tournamentError != null && mounted) {
-                          provider.clearError();
-                       }
-                    });
-                    return Container(
-                      padding: const EdgeInsets.all(10),
-                      margin: const EdgeInsets.only(top:8, bottom: 8),
-                      color: Colors.redAccent.withOpacity(0.8),
-                      child: Text(
-                        provider.tournamentError!,
-                        style: const TextStyle(color: Colors.white),
-                        textAlign: TextAlign.center,
+              Consumer<TournamentProvider>( builder: (context, provider, child) { if (provider.tournamentError != null) { Future.delayed(const Duration(seconds: 5), () { if (provider.tournamentError != null && mounted) { provider.clearError(); } }); return Container( padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12), margin: const EdgeInsets.only(top: 8, bottom: 8), decoration: BoxDecoration( color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(8), ), child: Row( mainAxisAlignment: MainAxisAlignment.center, children: [ Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18), SizedBox(width: 8), Expanded( child: Text( provider.tournamentError!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500), textAlign: TextAlign.center, softWrap: true, ), ), ], ), ); } else { return const SizedBox.shrink(); } }, ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Center(
+                  child: SizedBox(
+                    width: bottomButtonWidth,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.play_circle_fill_outlined),
+                      label: const Text('Iniciar Torneo'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        backgroundColor: canStart ? Theme.of(context).colorScheme.secondary : Colors.grey[700],
+                        foregroundColor: canStart ? Theme.of(context).colorScheme.onSecondary : Colors.grey[400],
+                        textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                    );
-                  } else {
-                    return const SizedBox.shrink();
-                  }
-                },
-              ),
-
-
-              const SizedBox(height: 16),
-              // --- Contador de Participantes ---
-              Container( // Fondo semitransparente para el contador
-                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                 decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(4),
-                 ),
-                 child: Text(
-                    context.select((TournamentProvider p) => 'Participantes: ${p.participantCount} / 16'),
-                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
-                   textAlign: TextAlign.center,
-                 ),
-               ),
-              const Divider(),
-
-              // --- Lista de Participantes ---
-              Expanded(
-                child: Consumer<TournamentProvider>(
-                  builder: (context, provider, child) {
-                     final participants = provider.participants;
-                     if (participants.isEmpty) {
-                         return Center(
-                           child: Container( // Fondo para mensaje vacío
-                             padding: const EdgeInsets.all(8.0),
-                             decoration: BoxDecoration(
-                               color: Colors.black.withOpacity(0.4),
-                               borderRadius: BorderRadius.circular(4),
-                             ),
-                             child: const Text(
-                               "Aún no hay participantes.",
-                               style: TextStyle(color: Colors.grey)
-                              ),
-                           ),
-                         );
-                     }
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: participants.length,
-                      itemBuilder: (context, index) {
-                        final participant = participants[index];
-                        return Card(
-                           margin: const EdgeInsets.symmetric(vertical: 4),
-                           color: Colors.grey[800]?.withOpacity(0.85), // Hacer tarjeta un poco transparente
-                          child: ListTile(
-                            leading: CircleAvatar(
-                               backgroundColor: Theme.of(context).colorScheme.secondary,
-                               foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                               child: Text(participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?'),
-                            ),
-                            title: Text(participant.name, style: const TextStyle(color: Colors.white)), // Asegurar texto blanco
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                              tooltip: 'Eliminar participante',
-                              onPressed: () => _removeParticipant(participant.id),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                      onPressed: canStart ? _startTournament : null,
+                    ),
+                  ),
                 ),
               ),
-              const Divider(),
-
-              // --- Botón Iniciar Torneo ---
-              Padding(
-                 padding: const EdgeInsets.symmetric(vertical: 8.0),
-                 child: Consumer<TournamentProvider>(
-                   builder: (context, provider, child) {
-                     return ElevatedButton.icon(
-                       icon: const Icon(Icons.play_circle_fill_outlined),
-                       label: const Text('Iniciar Torneo'),
-                       style: ElevatedButton.styleFrom(
-                         padding: const EdgeInsets.symmetric(vertical: 15),
-                         backgroundColor: provider.canStartTournament()
-                             ? Theme.of(context).colorScheme.secondary
-                             : Colors.grey[600],
-                        foregroundColor: provider.canStartTournament()
-                             ? Theme.of(context).colorScheme.onSecondary
-                             : Colors.grey[400],
-                       ),
-                       onPressed: provider.canStartTournament() ? _startTournament : null,
-                     );
-                   }
-                 ),
-               ),
+              const Divider(height: 15, thickness: 1),
+              Expanded(
+                 child: Material( color: Colors.transparent, child: AnimatedList( key: _listKey, controller: _scrollController, initialItemCount: _participantsList.length, itemBuilder: (context, index, animation) { return _buildAnimatedItem(context, index, animation); }, ), ),
+              ),
             ],
           ),
         ),
       ),
-      // ---> FIN DEL CONTENEDOR CON FONDO <---
+    );
+  }
+}
+
+class ParticipantListItem extends StatelessWidget {
+  final Participant participant;
+  final VoidCallback onRemove;
+  final bool isRemoving;
+
+  const ParticipantListItem({
+    super.key,
+    required this.participant,
+    required this.onRemove,
+    this.isRemoving = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Material(
+        color: isRemoving ? Colors.red.withOpacity(0.3) : Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          splashColor: Theme.of(context).primaryColor.withOpacity(0.2),
+          highlightColor: Theme.of(context).primaryColor.withOpacity(0.1),
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                  child: Text( participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?', style: TextStyle(fontWeight: FontWeight.bold), ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Text( participant.name, style: const TextStyle(color: Colors.white, fontSize: 16), overflow: TextOverflow.ellipsis, ),
+                ),
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  tooltip: 'Eliminar ${participant.name}',
+                  onPressed: onRemove,
+                  splashRadius: 20,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
