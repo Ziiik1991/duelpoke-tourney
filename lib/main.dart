@@ -1,30 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/tournament_provider.dart';
-import 'screens/welcome_screen.dart';
-import 'constants/app_theme.dart'; // Importa el tema
-// Importa el AudioManager
+import 'providers/tournament_provider.dart'; // Asegúrate que la ruta es correcta
+import 'screens/welcome_screen.dart';     // Asegúrate que la ruta es correcta
+import 'constants/app_theme.dart';       // Asegúrate que la ruta es correcta
 
+// Función principal que inicia la aplicación Flutter.
 void main() {
-  WidgetsFlutterBinding.ensureInitialized(); // Necesario para algunas inicializaciones
-  // Opcional: Inicializar AudioManager aquí si es necesario antes de runApp
-  // AudioManager.instance.init();
+  // Asegura que los bindings de Flutter estén inicializados antes de runApp
+  WidgetsFlutterBinding.ensureInitialized();
+  // Corre la aplicación principal definida en MyApp
   runApp(const MyApp());
 }
 
+/// Widget raíz de la aplicación.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Usamos ChangeNotifierProvider para que TournamentProvider esté disponible en toda la app
+    // Envuelve la app con ChangeNotifierProvider para manejar el estado del torneo.
     return ChangeNotifierProvider(
+      // Crea la instancia única del TournamentProvider que gestionará los datos.
       create: (context) => TournamentProvider(),
+      // MaterialApp configura aspectos básicos de la app (tema, pantalla inicial).
       child: MaterialApp(
-        title: 'DuelPoke Tourney',
-        theme: AppTheme.darkTheme, // Aplicar el tema oscuro personalizado
-        home: const WelcomeScreen(), // La pantalla inicial
-        debugShowCheckedModeBanner: false, // Opcional: quitar banner de debug
+        title: 'DuelPoke Tourney', // Título de la app (visible en tareas recientes, etc.)
+        theme: AppTheme.darkTheme, // Aplicar el tema oscuro definido en app_theme.dart
+        home: const WelcomeScreen(), // La pantalla que se muestra al iniciar la app
+        debugShowCheckedModeBanner: false, // Oculta la cinta "DEBUG" en la esquina
       ),
     );
   }
