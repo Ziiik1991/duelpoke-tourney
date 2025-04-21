@@ -10,7 +10,7 @@ import 'final_screen.dart';
 import '../constants/layout_constants.dart'; // Constantes
 // Importaciones de Flutter/Dart
 import 'package:flutter/foundation.dart'; // Para kDebugMode
-import 'dart:math'; // Para max
+import 'dart:math'; // Para max, min
 
 /// Pantalla principal donde se visualiza y juega el bracket del torneo.
 /// USA LAYOUT LINEAL (IZQ -> DER) con Y Centrada por Padres.
@@ -41,13 +41,13 @@ class _TournamentScreenState extends State<TournamentScreen> {
   void _goBack() { _playClickSound(); showDialog<bool>( context: context, builder: (ctx) => AlertDialog( title: const Text("Salir del Torneo"), content: const Text("El progreso no guardado se perderá."), actions: [ TextButton(onPressed: ()=> Navigator.of(ctx).pop(false), child: Text("Cancelar")), TextButton(onPressed: ()=> Navigator.of(ctx).pop(true), child: Text("Salir", style: TextStyle(color: Colors.redAccent))), ], ) ).then((confirmExit) { if (confirmExit == true) { if (kDebugMode) print("User chose to exit. Resetting and popping."); context.read<TournamentProvider>().resetTournament(); if(mounted) { Navigator.of(context).pushAndRemoveUntil( MaterialPageRoute(builder: (context) => const WelcomeScreen()), (r) => false); } } else { if (kDebugMode) print("Exit dialog dismissed or cancelled."); } }); }
 
 
-  /// Calcula layout LINEAL Izq->Der PERO CENTRANDO Y CON PADRES. (Corregido)
+  /// Calcula layout LINEAL Izquierda->Derecha PERO CENTRANDO Y CON PADRES.
   void _recalculateLayout() {
     final provider = context.read<TournamentProvider>();
-    final List<List<Match>> rondas = provider.rounds; // <-- Usar 'rondas' consistentemente
+    final List<List<Match>> rondas = provider.rounds;
 
     if (rondas.isEmpty) { if(mounted) setState(() { _anchoTotalBracket = 0; _altoTotalBracket = 0; _posicionesPartidos.clear(); }); return; }
-    final int rondasTotales = rondas.length; // <-- Usa 'rondas'
+    final int rondasTotales = rondas.length;
 
     if (kDebugMode) print("Calculating LINEAR layout (Parent Avg Y) for $rondasTotales rounds...");
     Map<String, Offset> nuevasPosiciones = {};
@@ -59,51 +59,30 @@ class _TournamentScreenState extends State<TournamentScreen> {
     final double inicioY = kMatchHeight * 1.5;
 
     for (int r = 0; r < rondasTotales; r++) {
-      int partidosEnEstaRonda = rondas[r].length; // <-- Usa 'rondas'
+      int partidosEnEstaRonda = rondas[r].length;
       if (partidosEnEstaRonda == 0) continue;
       double actualX = r * pasoHorizontal;
       maxAnchoCalculado = max(maxAnchoCalculado, actualX + kMatchWidth);
-
       for (int m = 0; m < partidosEnEstaRonda; m++) {
-          // Usa 'rondas' consistentemente
-          if (m >= rondas[r].length) continue;
-          Match partido = rondas[r][m];
+          if (m >= rondas[r].length) continue; Match partido = rondas[r][m];
           double actualY;
-
-          if (r == 0) {
-              actualY = inicioY + m * espaciadoVerticalBase; // R0 usa espaciado simple
-          } else {
-             int indicePadre1 = m * 2; int indicePadre2 = indicePadre1 + 1;
-             // Usa 'rondas' consistentemente
-             int partidosEnRondaAnterior = rondas[r-1].length;
-             Match? partidoPadre1 = (indicePadre1 < partidosEnRondaAnterior) ? rondas[r-1][indicePadre1] : null;
-             Match? partidoPadre2 = (indicePadre2 < partidosEnRondaAnterior) ? rondas[r-1][indicePadre2] : null;
-             Offset? posPadre1 = partidoPadre1 != null ? nuevasPosiciones[partidoPadre1.id] : null;
-             Offset? posPadre2 = partidoPadre2 != null ? nuevasPosiciones[partidoPadre2.id] : null;
-
+          if (r == 0) { actualY = inicioY + m * espaciadoVerticalBase; }
+          else {
+             int indicePadre1 = m * 2; int indicePadre2 = indicePadre1 + 1; int partidosEnRondaAnterior = rondas[r-1].length;
+             Match? partidoPadre1 = (indicePadre1 < partidosEnRondaAnterior) ? rondas[r-1][indicePadre1] : null; Match? partidoPadre2 = (indicePadre2 < partidosEnRondaAnterior) ? rondas[r-1][indicePadre2] : null;
+             Offset? posPadre1 = partidoPadre1 != null ? nuevasPosiciones[partidoPadre1.id] : null; Offset? posPadre2 = partidoPadre2 != null ? nuevasPosiciones[partidoPadre2.id] : null;
              if (posPadre1 != null && posPadre2 != null) { actualY = ((posPadre1.dy + kMatchHeight / 2) + (posPadre2.dy + kMatchHeight / 2)) / 2 - (kMatchHeight / 2); }
              else if (posPadre1 != null) { actualY = posPadre1.dy; } else if (posPadre2 != null) { actualY = posPadre2.dy; }
              else { actualY = inicioY; if (kDebugMode) print("WARN: No parents found R:$r M:$m"); }
           }
-
           nuevasPosiciones[partido.id] = Offset(actualX, actualY);
           maxAlturaCalculada = max(maxAlturaCalculada, actualY + kMatchHeight);
-          // if (kDebugMode) { print(" Linear Layout - Rendering Match R:${partido.roundIndex} M:${partido.matchIndexInRound} at Pos: (${actualX.toStringAsFixed(1)}, ${actualY.toStringAsFixed(1)})"); }
       }
     }
-
     double anchoFinal = maxAnchoCalculado + kHorizontalSpacing;
     double altoFinal = maxAlturaCalculada + kMatchHeight * 1.5;
-
     if (kDebugMode) { print("Linear Layout Calculation Done (Parent Avg Y)."); print("Final Total Width: $anchoFinal"); print("Final Total Height: $altoFinal"); print("Positions calculated for ${nuevasPosiciones.length} matches."); }
-
-    if(mounted) {
-       setState(() {
-           _posicionesPartidos = nuevasPosiciones;
-           _anchoTotalBracket = anchoFinal; // <-- Usar anchoFinal
-           _altoTotalBracket = altoFinal;   // <-- Usar altoFinal
-       });
-    }
+    if(mounted) { setState(() { _posicionesPartidos = nuevasPosiciones; _anchoTotalBracket = anchoFinal; _altoTotalBracket = altoFinal; }); }
   }
   // --- FIN _recalculateLayout ---
 
@@ -123,7 +102,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
     // --- ORDEN: Líneas -> Partidos -> Títulos ---
 
-    // 1. Painter (Lineal)
+    // 1. Painter (Lineal, con color cambiado en su definición abajo)
     if (_posicionesPartidos.isNotEmpty && rondasTotales > 0) {
        stackChildren.add( CustomPaint( painter: BracketLinesPainter( rounds: provider.rounds, positions: _posicionesPartidos, ), size: Size(anchoActual, altoActual), ) );
     }
@@ -132,21 +111,81 @@ class _TournamentScreenState extends State<TournamentScreen> {
     if (_posicionesPartidos.isNotEmpty) {
       stackChildren.addAll( provider.rounds.expand((ronda) => ronda).map((partido) { final posicion = _posicionesPartidos[partido.id]; if (posicion == null) { return const SizedBox.shrink(); }
             final Widget widgetSlot = MatchSlot(match: partido);
-            if (kDebugMode) { print("Rendering Match R:${partido.roundIndex} M:${partido.matchIndexInRound} at Pos: (${posicion.dx.toStringAsFixed(1)}, ${posicion.dy.toStringAsFixed(1)})"); }
+            // if (kDebugMode) { print("Rendering Match R:${partido.roundIndex} M:${partido.matchIndexInRound} at Pos: (${posicion.dx.toStringAsFixed(1)}, ${posicion.dy.toStringAsFixed(1)})"); }
             return Positioned( left: posicion.dx, top: posicion.dy, child: widgetSlot, );
            }) );
     } else if (provider.rounds.isNotEmpty) { stackChildren.add(const Center(child: CircularProgressIndicator())); }
 
-    // 3. Títulos (Lineales)
+    // 3. Títulos (Lineales, CON Y AJUSTADA y estilo)
      if (_posicionesPartidos.isNotEmpty && rondasTotales > 0 && anchoActual > 0) {
-       final double tituloY = 10.0; const estiloTitulo = TextStyle( color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 14, shadows: [ Shadow(color: Colors.black, offset: Offset(1,1), blurRadius: 2) ] );
-       for (int r = 0; r < rondasTotales; r++) { String textoTitulo = _getRoundTitle(r, rondasTotales); double tituloX = r * pasoHorizontal; stackChildren.add( Positioned( left: tituloX, top: tituloY, width: kMatchWidth, child: Text( textoTitulo, textAlign: TextAlign.center, style: estiloTitulo, ), ), ); }
+       // Definir estilo y padding para los títulos
+       final BoxDecoration estiloContenedorTitulo = BoxDecoration(
+         color: Colors.black.withOpacity(0.6), // Fondo semitransparente
+         borderRadius: BorderRadius.circular(6),
+         border: Border.all(color: Colors.black.withOpacity(0.8), width: 1),
+       );
+       const EdgeInsets paddingTitulo = EdgeInsets.symmetric(horizontal: 10, vertical: 4);
+       // Estilo del texto: más grande
+       const estiloTitulo = TextStyle( color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 16 ); // Tamaño 16
+
+       for (int r = 0; r < rondasTotales; r++) {
+         String textoTitulo = _getRoundTitle(r, rondasTotales);
+         double tituloX = r * pasoHorizontal; // Posición X lineal
+
+         // --- Calcular Y en Cascada y Más Separado de los cuadros ---
+         double tituloY;
+         // Buscar la Y más alta de los partidos de esta ronda 'r'
+         double minYEnEstaRonda = double.infinity;
+         // Usar provider.rounds directamente
+         if(provider.rounds.length > r && provider.rounds[r].isNotEmpty) {
+            for(var partido in provider.rounds[r]) { // Usar provider.rounds
+                final pos = _posicionesPartidos[partido.id];
+                if (pos != null) { minYEnEstaRonda = min(minYEnEstaRonda, pos.dy); }
+            }
+         } else { minYEnEstaRonda = kMatchHeight * 1.5; } // Fallback
+
+         if (minYEnEstaRonda != double.infinity) {
+             // Colocar por encima del partido más alto, dejando MÁS espacio + offset cascada
+             double offsetYCascada = r * 15.0; // <-- Cascada más suave (ajusta el 15.0)
+             tituloY = minYEnEstaRonda - kMatchHeight * 0.60 + offsetYCascada; // <-- MENOS offset negativo = más arriba (ajusta 0.75)
+         } else { tituloY = (kMatchHeight * 0.8) + (r * 15.0); } // Fallback cascada
+
+         // Asegurar un margen superior mínimo
+         tituloY = max(25.0, tituloY); // <-- Mínimo Y aumentado a 25.0
+         // --- Fin Cálculo Y ---
+
+         stackChildren.add(
+           Positioned(
+             left: tituloX + (kMatchWidth / 2), // Centrar X del contenedor
+             top: tituloY, // Usar Y calculada
+             child: Transform.translate( // Usar Transform para centrar correctamente
+                offset: Offset(-(kMatchWidth*0.6)/ 2, 0), // Centrar basado en ancho estimado del texto/caja
+                child: Container(
+                    constraints: BoxConstraints(maxWidth: kMatchWidth * 1.5), // Limitar ancho
+                    padding: paddingTitulo,
+                    decoration: estiloContenedorTitulo,
+                    child: Text( textoTitulo, textAlign: TextAlign.center, style: estiloTitulo, softWrap: false, overflow: TextOverflow.fade, ),
+                ),
+             )
+           ),
+         );
+       }
      }
 
     // --- Construcción del Scaffold ---
     return Scaffold(
        appBar: AppBar( title: Text('Torneo (${provider.participantCount} Jugadores)'), actions: [ IconButton( icon: const Icon(Icons.undo), tooltip: 'Deshacer', onPressed: provider.canUndo ? () { _playClickSound(); context.read<TournamentProvider>().undoLastSelection(); } : null, ), IconButton( icon: const Icon(Icons.refresh), tooltip: 'Reiniciar', onPressed: _resetTournament, ), ], leading: IconButton( icon: const Icon(Icons.arrow_back), tooltip: 'Salir', onPressed: _goBack, ), ),
-       body: Container( decoration: BoxDecoration( image: DecorationImage( image: const AssetImage('assets/images/tournament_bg.png'), fit: BoxFit.cover, colorFilter: ColorFilter.mode( Colors.black.withOpacity(0.7), BlendMode.darken,), ),), child: InteractiveViewer( transformationController: _transformationController, minScale: 0.1, maxScale: 5.0, constrained: false, boundaryMargin: const EdgeInsets.all(200.0), child: SizedBox( width: anchoActual, height: altoActual, child: Stack( children: stackChildren ), ), ), ),
+       body: Container(
+         decoration: BoxDecoration( image: DecorationImage( image: const AssetImage('assets/images/tournament_bg.png'), fit: BoxFit.cover,
+             // Filtro de color (más claro que antes)
+             colorFilter: ColorFilter.mode( Colors.black.withOpacity(0.5), BlendMode.darken,),
+         ),),
+         child: InteractiveViewer(
+           transformationController: _transformationController, minScale: 0.1, maxScale: 5.0,
+           constrained: false, boundaryMargin: const EdgeInsets.all(200.0),
+           child: SizedBox( width: anchoActual, height: altoActual, child: Stack( children: stackChildren ), ),
+         ),
+       ),
        floatingActionButton: FloatingActionButton( mini: true, tooltip: 'Centrar Vista', onPressed: () { if (kDebugMode) print("Resetting view transformation."); _transformationController.value = Matrix4.identity(); }, child: const Icon(Icons.center_focus_strong), ),
     );
   }
@@ -154,52 +193,36 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
 
 /// Dibuja las líneas conectores para un bracket LINEAL (Izq -> Der).
+/// CON COLOR ROJO.
 class BracketLinesPainter extends CustomPainter {
   final List<List<Match>> rounds; final Map<String, Offset> positions;
-  final Paint linePaint;
-  BracketLinesPainter({ required this.rounds, required this.positions, }) : linePaint = Paint() ..color = Colors.grey[600]! ..strokeWidth = 1.5 ..style = PaintingStyle.stroke;
+  final Paint linePaint; // El paint ahora se define en el constructor
+
+  BracketLinesPainter({ required this.rounds, required this.positions, })
+    // --- CAMBIAR COLOR AQUÍ ---
+    : linePaint = Paint()
+          ..color = const Color.fromARGB(255, 235, 17, 224) // <-- COLOR CAMBIADO A ROJO
+          ..strokeWidth = 1.8 // <-- LÍNEA LIGERAMENTE MÁS GRUESA
+          ..style = PaintingStyle.stroke;
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Usa constantes globales importadas
+    if (rounds.isEmpty || positions.isEmpty) return;
+    final int rondasTotales = rounds.length;
     const double matchHeight = kMatchHeight; const double matchWidth = kMatchWidth; const double hSpacing = kHorizontalSpacing;
 
-    if (rounds.isEmpty || positions.isEmpty) return;
-    final int rondasTotales = rounds.length; // Español
-
     for (int r = 0; r < rondasTotales - 1; r++) {
-      int partidosEnEstaRonda = rounds[r].length; // Español
-      if(partidosEnEstaRonda == 0) continue;
-
+      int partidosEnEstaRonda = rounds[r].length; if(partidosEnEstaRonda == 0) continue;
       for (int m = 0; m < partidosEnEstaRonda; m++) {
-        if (m >= rounds[r].length) continue;
-        final Match partidoActual = rounds[r][m]; // Español
-        final Offset? posActual = positions[partidoActual.id]; // Español
-        if (posActual == null) { continue; }
-
-        int siguienteIndicePartido = (m / 2).floor(); // Español
+        if (m >= rounds[r].length) continue; final Match partidoActual = rounds[r][m]; final Offset? posActual = positions[partidoActual.id]; if (posActual == null) { continue; }
+        int siguienteIndicePartido = (m / 2).floor();
         if (r + 1 < rondasTotales && siguienteIndicePartido < rounds[r + 1].length) {
-          final Match siguientePartido = rounds[r + 1][siguienteIndicePartido]; // Español
-          final Offset? siguientePos = positions[siguientePartido.id]; // Español
-          if (siguientePos == null) { continue; }
-
-          // Lógica lineal Izq -> Der
-          final Offset puntoSalida = Offset(posActual.dx + matchWidth, posActual.dy + matchHeight / 2);
-          final Offset puntoEntrada = Offset(siguientePos.dx, siguientePos.dy + matchHeight / 2);
-          final double medioX = puntoSalida.dx + hSpacing / 2;
-          final Path camino = Path();
-          camino.moveTo(puntoSalida.dx, puntoSalida.dy);
-          camino.lineTo(medioX, puntoSalida.dy); // Horizontal
-          camino.lineTo(medioX, puntoEntrada.dy); // Vertical
-          camino.lineTo(puntoEntrada.dx, puntoEntrada.dy); // Horizontal
-          canvas.drawPath(camino, linePaint);
+          final Match siguientePartido = rounds[r + 1][siguienteIndicePartido]; final Offset? siguientePos = positions[siguientePartido.id]; if (siguientePos == null) { continue; }
+          final Offset puntoSalida = Offset(posActual.dx + matchWidth, posActual.dy + matchHeight / 2); final Offset puntoEntrada = Offset(siguientePos.dx, siguientePos.dy + matchHeight / 2); final double medioX = puntoSalida.dx + hSpacing / 2; final Path camino = Path(); camino.moveTo(puntoSalida.dx, puntoSalida.dy); camino.lineTo(medioX, puntoSalida.dy); camino.lineTo(medioX, puntoEntrada.dy); camino.lineTo(puntoEntrada.dx, puntoEntrada.dy); canvas.drawPath(camino, linePaint);
         }
       }
     }
   }
   @override
-  bool shouldRepaint(covariant BracketLinesPainter oldDelegate) {
-    // Comparar solo datos que sí tiene la clase
-    return oldDelegate.positions != positions || oldDelegate.rounds != rounds;
-   }
+  bool shouldRepaint(covariant BracketLinesPainter oldDelegate) { return oldDelegate.positions != positions || oldDelegate.rounds != rounds; }
 }

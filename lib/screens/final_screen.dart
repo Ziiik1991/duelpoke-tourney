@@ -1,7 +1,6 @@
 import 'dart:typed_data'; // Para manejar bytes (PDF, imágenes)
 import 'dart:convert'; // Para Base64
-import 'dart:io'; // Para manejo de archivos (solo si no es web)
-// ignore: avoid_web_libraries_in_flutter
+import 'dart:io'; 
 import 'dart:html' as html; // Específico para web (descargar PDF)
 import 'package:flutter/foundation.dart'; // Para kIsWeb, kDebugMode
 import 'package:flutter/material.dart';
