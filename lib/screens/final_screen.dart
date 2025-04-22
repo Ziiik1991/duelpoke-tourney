@@ -85,7 +85,7 @@ class _FinalScreenState extends State<FinalScreen>
     // --- Construcción del PDF (sin cambios) ---
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.a4.landscape,
         build: (pw.Context context) {
           return pw.Center(
             child: pw.Padding(
