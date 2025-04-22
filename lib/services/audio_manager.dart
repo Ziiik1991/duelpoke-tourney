@@ -1,15 +1,12 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart'; // Para kDebugMode
+import 'package:flutter/foundation.dart';
 
-// --- Constantes de Nombres de Archivo (REEMPLAZA CON TUS NOMBRES REALES) ---
-const String _clickSound = 'audio/click.ogg'; // <- REEMPLAZA
-const String _winMatchSound = 'audio/win_match.ogg'; // <- REEMPLAZA
-const String _winTournamentSound = 'audio/win_tournament.ogg'; // <- REEMPLAZA
-const String _backgroundMusic =
-    'audio/background_music.ogg'; // <- REEMPLAZA (opcional)
+const String _clickSound = 'audio/click.ogg';
+const String _winMatchSound = 'audio/win_match.ogg';
+const String _winTournamentSound = 'audio/win_tournament.ogg';
+const String _backgroundMusic = 'audio/background_music.ogg';
 
 class AudioManager {
-  // Singleton pattern
   AudioManager._privateConstructor();
   static final AudioManager instance = AudioManager._privateConstructor();
 
@@ -18,14 +15,14 @@ class AudioManager {
   );
   final AudioPlayer _sfxPlayer = AudioPlayer(playerId: 'sfx_player');
 
-  bool _isMusicEnabled = true; // Podrías cargar esto desde SharedPreferences
-  bool _areSfxEnabled = true; // Podrías cargar esto desde SharedPreferences
+  bool _isMusicEnabled = true;
+  bool _areSfxEnabled = true;
 
   bool _isInitialized = false;
 
   Future<void> init() async {
-    if (_isInitialized) return; // Evitar inicializar múltiples veces
-    // Configuraciones iniciales si son necesarias
+    if (_isInitialized) return;
+
     await _backgroundPlayer.setReleaseMode(ReleaseMode.loop);
     await _sfxPlayer.setReleaseMode(
       ReleaseMode.release,
@@ -48,7 +45,7 @@ class AudioManager {
     if (!shouldPlay) return;
 
     try {
-      // Detener si ya está sonando (especialmente para SFX rápidos que no deben solaparse)
+      // Detener si ya está sonando
       if (player.state == PlayerState.playing && isSfx) {
         await player.stop();
       }
@@ -61,13 +58,12 @@ class AudioManager {
       if (kDebugMode) {
         print("AudioManager Error playing $assetPath: $e");
       }
-      // Considera mostrar un mensaje al usuario o loggear el error
     }
   }
 
   Future<void> playBackgroundMusic({double volume = 0.4}) async {
     if (!_isMusicEnabled) {
-      await stopBackgroundMusic(); // Asegurarse de que esté detenido si se deshabilita
+      await stopBackgroundMusic();
       return;
     }
     await _play(
@@ -111,11 +107,8 @@ class AudioManager {
     _isMusicEnabled = enabled;
     if (!enabled) {
       stopBackgroundMusic();
-    } else {
-      // Opcional: reanudar la música si estaba sonando antes
-      // playBackgroundMusic();
-    }
-    // TODO: Guardar preferencia (ej. SharedPreferences)
+    } else {}
+
     if (kDebugMode) {
       print("AudioManager: Music enabled: $enabled");
     }
@@ -123,13 +116,13 @@ class AudioManager {
 
   void enableSfx(bool enabled) {
     _areSfxEnabled = enabled;
-    // TODO: Guardar preferencia
+
     if (kDebugMode) {
       print("AudioManager: SFX enabled: $enabled");
     }
   }
 
-  // --- Getters para UI (ej. en pantalla de opciones) ---
+  // --- Getters para UI
   bool get isMusicEnabled => _isMusicEnabled;
   bool get areSfxEnabled => _areSfxEnabled;
 

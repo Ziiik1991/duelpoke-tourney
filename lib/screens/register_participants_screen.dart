@@ -4,8 +4,8 @@ import '../models/participant.dart';
 import '../providers/tournament_provider.dart';
 import '../services/audio_manager.dart';
 import 'tournament_screen.dart';
-import '../widgets/participant_list_item.dart'; // Importar widget movido
-import 'package:flutter/foundation.dart'; // Para kDebugMode
+import '../widgets/participant_list_item.dart';
+import 'package:flutter/foundation.dart';
 
 /// Pantalla para registrar participantes.
 class RegisterParticipantsScreen extends StatefulWidget {
@@ -47,7 +47,7 @@ class _RegisterParticipantsScreenState
     AudioManager.instance.playClickSound();
   }
 
-  /// Añade participante (LÍMITE 32)
+  /// Añade participante
   void _addParticipant() {
     final provider = context.read<TournamentProvider>();
     if (provider.participantCount >= 32) {
@@ -218,25 +218,21 @@ class _RegisterParticipantsScreenState
         ),
       ),
       body: Container(
-        // --- AJUSTE DE FONDO AQUÍ ---
         decoration: BoxDecoration(
           image: DecorationImage(
-            // NOTA: Sigue usando 'register_background.png'. Cambia a 'tournament_bg.png' si quieres la MISMA imagen.
             image: const AssetImage('assets/images/register_background.png'),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
-              // Cambiar opacidad de 0.65 a 0.5 para aclarar
-              Colors.black.withOpacity(0.5), // <-- Opacidad reducida
+              const Color.fromARGB(255, 202, 199, 199).withOpacity(0.5),
               BlendMode.darken,
             ),
           ),
         ),
-        // --- FIN AJUSTE FONDO ---
+
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
           child: Column(
             children: [
-              // --- Row Input y Conteo ---
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -254,17 +250,27 @@ class _RegisterParticipantsScreenState
                                 labelText: 'Nombre Participante',
                                 hintText: 'Ingresa...',
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.1),
+                                fillColor: const Color.fromARGB(
+                                  255,
+                                  8,
+                                  43,
+                                  239,
+                                ).withOpacity(0.1),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
                                 ),
                                 labelStyle: TextStyle(
-                                  color: Colors.white70,
+                                  color: const Color.fromARGB(
+                                    179,
+                                    41,
+                                    111,
+                                    241,
+                                  ),
                                   fontSize: 14,
                                 ),
                                 hintStyle: TextStyle(
-                                  color: Colors.white54,
+                                  color: const Color.fromARGB(179, 9, 119, 237),
                                   fontSize: 14,
                                 ),
                                 contentPadding: EdgeInsets.symmetric(
@@ -273,7 +279,7 @@ class _RegisterParticipantsScreenState
                                 ),
                               ),
                               style: TextStyle(
-                                color: Colors.white,
+                                color: const Color.fromARGB(255, 67, 91, 247),
                                 fontSize: inputFontSize,
                               ),
                               onFieldSubmitted:
@@ -290,7 +296,7 @@ class _RegisterParticipantsScreenState
                             backgroundColor:
                                 canAddMore
                                     ? Theme.of(context).colorScheme.secondary
-                                    : Colors.grey[700],
+                                    : const Color.fromARGB(255, 59, 58, 58),
                           ),
                           child: Icon(
                             Icons.add,
@@ -298,7 +304,7 @@ class _RegisterParticipantsScreenState
                             color:
                                 canAddMore
                                     ? Theme.of(context).colorScheme.onSecondary
-                                    : Colors.grey[400],
+                                    : const Color.fromARGB(255, 80, 68, 245),
                           ),
                         ),
                       ],
@@ -326,7 +332,7 @@ class _RegisterParticipantsScreenState
                               style: Theme.of(
                                 context,
                               ).textTheme.titleSmall?.copyWith(
-                                color: Colors.white,
+                                color: const Color.fromARGB(255, 14, 115, 246),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),

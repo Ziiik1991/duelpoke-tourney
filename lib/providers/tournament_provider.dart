@@ -3,10 +3,19 @@ import 'package:flutter/foundation.dart'; // Necesario para kDebugMode
 import '../models/participant.dart';
 import '../models/match.dart';
 import 'package:uuid/uuid.dart';
-// Quitar si no se usan
-// import 'dart:convert';
-// import 'package:shared_preferences/shared_preferences.dart';
 
+// Tipo para devolver los parámetros calculados del bracket
+typedef BracketParams =
+    ({
+      int virtualSize,
+      int numRounds,
+      int matchesR0,
+      int numByes,
+      int numPlayingR0,
+      int realMatchesR0,
+    });
+
+/// Gestiona el estado y la lógica de un torneo de eliminación simple.
 class TournamentProvider with ChangeNotifier {
   final _uuid = const Uuid();
   List<Participant> _participants = [];
@@ -15,11 +24,10 @@ class TournamentProvider with ChangeNotifier {
   bool _isTournamentActive = false;
   String? _tournamentError;
 
-  // --- Estado para Deshacer ---
+  // Estado para Deshacer
   String? _lastAffectedMatchId;
   String? _lastAdvancedToMatchId;
   Participant? _lastWinner;
-  // _originalOpponent eliminado
   bool _wasLastAdvanceToP1 = false;
   bool _canUndo = false;
 
@@ -33,8 +41,9 @@ class TournamentProvider with ChangeNotifier {
   int get participantCount => _participants.length;
   bool get canUndo => _canUndo;
 
-  // --- Métodos ---
+  // --- Métodos Públicos ---
   void addParticipant(String name) {
+    /* ... (igual que antes, límite 32) ... */
     _tournamentError = null;
     name = name.trim();
     if (name.isEmpty) {
@@ -45,9 +54,8 @@ class TournamentProvider with ChangeNotifier {
       _setError("'$name' ya está registrado.");
       return;
     }
-    // --- LÍMITE CAMBIADO A 32 ---
     if (_participants.length >= 32) {
-      _setError("Máximo 32 participantes alcanzado."); // Mensaje actualizado
+      _setError("Máximo 32 participantes alcanzado.");
       return;
     }
     final newParticipant = Participant(id: _uuid.v4(), name: name);
@@ -57,28 +65,33 @@ class TournamentProvider with ChangeNotifier {
   }
 
   void removeParticipant(String id) {
+    /* ... (igual que antes) ... */
     _tournamentError = null;
     final participantIndex = _participants.indexWhere((p) => p.id == id);
     if (participantIndex != -1) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
           "Participante Eliminado: ${_participants[participantIndex].name} (ID: $id)",
         );
+      }
       _participants.removeAt(participantIndex);
       notifyListeners();
     } else {
-      if (kDebugMode)
+      if (kDebugMode) {
         print("Error: No se encontró participante para eliminar con ID: $id");
+      }
     }
   }
 
   void _setError(String message) {
+    /* ... (igual que antes) ... */
     _tournamentError = message;
     if (kDebugMode) print("Error Establecido: $message");
     notifyListeners();
   }
 
   void clearError() {
+    /* ... (igual que antes) ... */
     if (_tournamentError != null) {
       _tournamentError = null;
       notifyListeners();
@@ -86,21 +99,21 @@ class TournamentProvider with ChangeNotifier {
   }
 
   bool canStartTournament() {
+    /* ... (igual, límite 3-32) ... */
     final count = _participants.length;
-    // --- LÍMITE CAMBIADO A 32 ---
     return count >= 3 && count <= 32;
   }
 
+  /// Inicia el torneo, generando el bracket.
   void startTournament() {
     if (!canStartTournament()) {
-      // --- MENSAJE DE ERROR ACTUALIZADO ---
       _setError("Se necesitan entre 3 y 32 participantes para iniciar.");
       notifyListeners();
       return;
     }
     _tournamentError = null;
     _winner = null;
-    _rounds = _generateBracket(_participants);
+    _rounds = _generateBracket(_participants); // Generar estructura
     _isTournamentActive = true;
     _canUndo = false;
     _clearUndoState();
@@ -111,124 +124,291 @@ class TournamentProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Lógica Principal del Bracket (Ahora más corta) ---
+
+  /// Genera la estructura completa del bracket. Llama a helpers.
   List<List<Match>> _generateBracket(List<Participant> initialParticipants) {
-    if (initialParticipants.isEmpty) return [];
-    final int nP = initialParticipants.length;
-    if (nP < 2) return [];
-    final int nP2 = pow(2, (log(nP) / log(2)).ceil()).toInt();
-    final int nR = (log(nP2) / log(2)).toInt();
-    final int nMR0 = nP2 ~/ 2;
-    final int nB = nP2 - nP;
-    final int nFP = nP - nB;
-    final int nMA0 = nFP ~/ 2;
+    // 1. Calcular parámetros necesarios
+    final BracketParams params = _calculateBracketParameters(
+      initialParticipants.length,
+    );
+    if (params.numRounds == 0) return []; // No se puede generar si nP < 2
+
+    // 2. Preparar listas de participantes (mezclados, byes, jugando)
+    final (participantesBye, participantesJugando) = _prepareParticipantLists(
+      initialParticipants,
+      params.numByes,
+    );
+
+    // 3. Crear estructura de rondas vacía
+    List<List<Match>> rondasGeneradas = _createEmptyRounds(
+      params.numRounds,
+      params.virtualSize,
+    );
+
+    // 4. Poblar la Ronda 0 con BYEs y partidos, y avanzar BYEs
+    _populateRound0(
+      rondasGeneradas,
+      participantesBye,
+      participantesJugando,
+      params,
+    );
 
     if (kDebugMode) {
-      print("Generando bracket V7 para $nP participantes.");
-      print("Tamaño virtual: $nP2, Rondas: $nR");
-      print("BYEs: $nB, Partidos Reales R0: $nMA0");
+      print("Bracket final generado con ${params.numRounds} rondas.");
+    }
+    return rondasGeneradas;
+  }
+
+  /// Selecciona un ganador y avanza si corresponde. Llama a helpers.
+  /// (Variables locales principales en español)
+  void selectWinner(String matchId, String winnerParticipantId) {
+    if (kDebugMode) {
+      print(
+        "[Provider] selectWinner ENTRY - MatchID: $matchId, WinnerID: $winnerParticipantId",
+      );
+    }
+    if (!_isTournamentActive || isTournamentFinished) {
+      /* ... (validación) ... */
+      return;
     }
 
-    List<Participant> shuffledParticipants = List.from(initialParticipants)
+    // 1. Encontrar el partido y sus índices
+    final foundMatchInfo = _findMatchAndIndices(matchId);
+    if (foundMatchInfo == null) {
+      if (kDebugMode) {
+        print("[Provider] selectWinner EXIT - Partido $matchId no encontrado.");
+      }
+      return;
+    }
+
+    final Match partidoObjetivo = foundMatchInfo.match;
+    final int indiceRondaActual = foundMatchInfo.roundIndex;
+    final int indicePartidoEnRonda = foundMatchInfo.matchIndex;
+
+    // 2. Validar si se puede jugar
+    if (partidoObjetivo.isFinished) {
+      if (kDebugMode) {
+        print(
+          "[Provider] selectWinner EXIT - Partido ${partidoObjetivo.id} ya finalizado.",
+        );
+      }
+      return;
+    }
+    if (!partidoObjetivo.isReadyToPlay) {
+      if (kDebugMode) {
+        print(
+          "[Provider] selectWinner EXIT - Partido ${partidoObjetivo.id} no listo (P1:${partidoObjetivo.participant1?.name}, P2:${partidoObjetivo.participant2?.name}).",
+        );
+      }
+      return;
+    }
+
+    // 3. Preparar Undo y asignar ganador actual
+    _clearUndoState();
+    _lastAffectedMatchId = partidoObjetivo.id;
+    _lastWinner =
+        partidoObjetivo.participant1?.id == winnerParticipantId
+            ? partidoObjetivo.participant1
+            : partidoObjetivo.participant2;
+    if (kDebugMode) {
+      print(
+        "[Provider] selectWinner - Found Match R:$indiceRondaActual M:$indicePartidoEnRonda. Assigning winner...",
+      );
+    }
+    partidoObjetivo.winnerId = winnerParticipantId;
+    Participant? participanteGanador = partidoObjetivo.winner;
+
+    // 4. Avanzar o finalizar
+    bool esRondaFinal = indiceRondaActual == _rounds.length - 1;
+    if (kDebugMode) {
+      print(
+        "[Provider] selectWinner - Check conditions: isFinalRound: $esRondaFinal, winnerParticipant exists: ${participanteGanador != null}",
+      );
+    }
+
+    if (!esRondaFinal && participanteGanador != null) {
+      // Llama a helper para avanzar
+      _advanceWinnerToNextRound(
+        partidoObjetivo,
+        participanteGanador,
+        indiceRondaActual,
+        indicePartidoEnRonda,
+      );
+    } else if (esRondaFinal && participanteGanador != null) {
+      // Llama a helper para finalizar
+      _setTournamentWinner(participanteGanador);
+    } else {
+      if (kDebugMode) {
+        print("[Provider] selectWinner - No advancement/finish condition met.");
+      }
+    }
+
+    // 5. Habilitar undo y notificar
+    _canUndo = true;
+    if (kDebugMode) {
+      print("[Provider] selectWinner - END. Notifying listeners.");
+    }
+    notifyListeners();
+  }
+
+  // --- Métodos Privados Auxiliares ---
+
+  /// Calcula los parámetros básicos del bracket (tamaño, rondas, byes, etc.)
+  BracketParams _calculateBracketParameters(int numParticipantes) {
+    if (numParticipantes < 2) {
+      return (
+        virtualSize: 0,
+        numRounds: 0,
+        matchesR0: 0,
+        numByes: 0,
+        numPlayingR0: 0,
+        realMatchesR0: 0,
+      );
+    }
+    final int nP2 = pow(2, (log(numParticipantes) / log(2)).ceil()).toInt();
+    final int nR = (log(nP2) / log(2)).toInt();
+    final int nMR0 = nP2 ~/ 2;
+    final int nB = nP2 - numParticipantes;
+    final int nFP = numParticipantes - nB;
+    final int nMA0 = nFP ~/ 2;
+    if (kDebugMode) {
+      print(
+        "  _calculateBracketParameters: nP=$numParticipantes -> nP2=$nP2, nR=$nR, nMR0=$nMR0, nB=$nB, nFP=$nFP, nMA0=$nMA0",
+      );
+    }
+    return (
+      virtualSize: nP2,
+      numRounds: nR,
+      matchesR0: nMR0,
+      numByes: nB,
+      numPlayingR0: nFP,
+      realMatchesR0: nMA0,
+    );
+  }
+
+  /// Mezcla participantes y los separa en listas de BYE y Jugando.
+  (List<Participant>, List<Participant>) _prepareParticipantLists(
+    List<Participant> initialParticipants,
+    int numByes,
+  ) {
+    List<Participant> participantesMezclados = List.from(initialParticipants)
       ..shuffle(Random());
-    List<Participant> byeParticipants = shuffledParticipants.sublist(0, nB);
-    List<Participant> playingParticipants = shuffledParticipants.sublist(nB);
-    List<List<Match>> generatedRounds = List.generate(nR, (r) {
-      int matchesInRound = nP2 ~/ pow(2, r + 1);
-      if (kDebugMode) print("Ronda $r: Creando ${matchesInRound} slots.");
+    List<Participant> participantesBye = participantesMezclados.sublist(
+      0,
+      numByes,
+    );
+    List<Participant> participantesJugando = participantesMezclados.sublist(
+      numByes,
+    );
+    return (participantesBye, participantesJugando);
+  }
+
+  /// Crea la estructura de lista de listas para las rondas, con objetos Match vacíos.
+  List<List<Match>> _createEmptyRounds(int numRounds, int virtualSize) {
+    List<List<Match>> rondasGeneradas = List.generate(numRounds, (r) {
+      int partidosEnRonda = virtualSize ~/ pow(2, r + 1);
+      if (kDebugMode) {
+        print(
+          "  _createEmptyRounds: Ronda $r: Creando $partidosEnRonda slots.",
+        );
+      }
       return List.generate(
-        matchesInRound,
+        partidosEnRonda,
         (m) => Match(id: _uuid.v4(), roundIndex: r, matchIndexInRound: m),
       );
     });
-    if (kDebugMode) print("Estructura de rondas vacía creada.");
+    if (kDebugMode) print("  _createEmptyRounds: Estructura vacía creada.");
+    return rondasGeneradas;
+  }
 
-    int byeIndex = 0;
-    int playerIndex = 0;
-    int byesAssigned = 0;
-    int realMatchesAssigned = 0;
+  /// Asigna BYEs y Partidos Reales a la Ronda 0, y avanza los BYEs a Ronda 1.
+  void _populateRound0(
+    List<List<Match>> rondasGeneradas,
+    List<Participant> participantesBye,
+    List<Participant> participantesJugando,
+    BracketParams params,
+  ) {
+    int indiceBye = 0;
+    int indiceJugador = 0;
+    int byesAsignados = 0;
+    int partidosRealesAsignados = 0;
+    final int numRondas = params.numRounds; // Obtener de params
 
-    for (int m = 0; m < nMR0; m++) {
-      Match currentMatch = generatedRounds[0][m];
-      if (byesAssigned < nB) {
-        if (byeIndex < byeParticipants.length) {
-          Participant byeWinner = byeParticipants[byeIndex++];
-          currentMatch.participant1 = byeWinner;
-          currentMatch.participant2 = null;
-          currentMatch.winnerId = byeWinner.id;
-          byesAssigned++;
-          if (kDebugMode)
-            print("Asignando BYE a ${byeWinner.name} en R:0 M:$m");
-          if (nR > 1) {
-            int nextRoundIndex = 1;
-            int nextMatchIndex = (m / 2).floor();
-            if (nextRoundIndex < generatedRounds.length &&
-                nextMatchIndex < generatedRounds[nextRoundIndex].length) {
-              Match nextMatch = generatedRounds[nextRoundIndex][nextMatchIndex];
-              if (m % 2 == 0) {
-                nextMatch.participant1 = byeWinner;
-                if (kDebugMode)
-                  print(
-                    "Avanzando BYE ${byeWinner.name} a R:1 M:$nextMatchIndex como P1",
-                  );
-              } else {
-                nextMatch.participant2 = byeWinner;
-                if (kDebugMode)
-                  print(
-                    "Avanzando BYE ${byeWinner.name} a R:1 M:$nextMatchIndex como P2",
-                  );
-              }
-            } else {
-              if (kDebugMode)
-                print(
-                  "WARN: No se encontró el siguiente partido para avanzar BYE R:$nextRoundIndex M:$nextMatchIndex",
-                );
-            }
+    for (int m = 0; m < params.matchesR0; m++) {
+      Match partidoActual = rondasGeneradas[0][m];
+      if (byesAsignados < params.numByes) {
+        // Asignar BYE
+        if (indiceBye < participantesBye.length) {
+          Participant ganadorPorBye = participantesBye[indiceBye++];
+          partidoActual.participant1 = ganadorPorBye;
+          partidoActual.winnerId = ganadorPorBye.id;
+          byesAsignados++;
+          if (kDebugMode) {
+            print(
+              "  _populateRound0: Asignando BYE a ${ganadorPorBye.name} en R:0 M:$m",
+            );
+          }
+          // Avanzar BYE (si hay más rondas)
+          if (numRondas > 1) {
+            _advanceByeWinner(rondasGeneradas, ganadorPorBye, m);
           }
         } else {
-          if (kDebugMode)
+          if (kDebugMode) {
             print(
-              "Error Lógico: Se esperaban más BYEs de los disponibles en R:0 M:$m",
+              "  _populateRound0: Error Lógico - Más BYEs esperados que disponibles en R:0 M:$m",
             );
+          }
         }
-      } else if (realMatchesAssigned < nMA0) {
-        int p1ListIndex = playerIndex;
-        int p2ListIndex = playerIndex + 1;
-        if (p2ListIndex < playingParticipants.length) {
-          Participant p1 = playingParticipants[p1ListIndex];
-          Participant p2 = playingParticipants[p2ListIndex];
-          currentMatch.participant1 = p1;
-          currentMatch.participant2 = p2;
-          currentMatch.winnerId = null;
-          realMatchesAssigned++;
-          playerIndex += 2;
-          if (kDebugMode)
-            print("Asignando Partido ${p1.name} vs ${p2.name} en R:0 M:$m");
-        } else {
-          if (kDebugMode)
+      } else if (partidosRealesAsignados < params.realMatchesR0) {
+        // Asignar Partido Real
+        int idxP1 = indiceJugador;
+        int idxP2 = indiceJugador + 1;
+        if (idxP2 < participantesJugando.length) {
+          Participant p1 = participantesJugando[idxP1];
+          Participant p2 = participantesJugando[idxP2];
+          partidoActual.participant1 = p1;
+          partidoActual.participant2 = p2;
+          partidosRealesAsignados++;
+          indiceJugador += 2;
+          if (kDebugMode) {
             print(
-              "Error CRÍTICO: Número impar de jugadores restantes para asignar partidos en R:0 M:$m",
+              "  _populateRound0: Asignando Partido ${p1.name} vs ${p2.name} en R:0 M:$m",
             );
-          if (p1ListIndex < playingParticipants.length) {
-            Participant p1 = playingParticipants[p1ListIndex];
-            currentMatch.participant1 = p1;
-            currentMatch.participant2 = null;
-            currentMatch.winnerId = p1.id;
-            realMatchesAssigned++;
-            playerIndex++;
-            if (kDebugMode)
+          }
+        } else {
+          // Jugador impar restante (BYE forzado)
+          if (kDebugMode) {
+            print(
+              "  _populateRound0: Error CRÍTICO - Número impar de jugadores restantes en R:0 M:$m",
+            );
+          }
+          if (idxP1 < participantesJugando.length) {
+            Participant p1 = participantesJugando[idxP1];
+            partidoActual.participant1 = p1;
+            partidoActual.winnerId = p1.id;
+            partidosRealesAsignados++;
+            indiceJugador++;
+            if (kDebugMode) {
               print(
-                "WARN: Jugador ${p1.name} sin pareja, asignado como BYE forzado.",
+                "  _populateRound0: WARN - Jugador ${p1.name} asignado como BYE forzado.",
               );
+            }
+            // Avanzar este BYE forzado también
+            if (numRondas > 1) _advanceByeWinner(rondasGeneradas, p1, m);
           }
         }
       } else {
-        if (kDebugMode) print("Info: Slot virtual R:0 M:$m sin uso.");
+        if (kDebugMode) {
+          print("  _populateRound0: Info - Slot virtual R:0 M:$m sin uso.");
+        }
       }
     }
     if (kDebugMode) {
-      int finalByeCount = generatedRounds[0].where((m) => m.isBye).length;
+      /* ... (imprimir resumen R0) ... */
+      int finalByeCount = rondasGeneradas[0].where((m) => m.isBye).length;
       int finalMatchCount =
-          generatedRounds[0]
+          rondasGeneradas[0]
               .where(
                 (m) =>
                     m.participant1 != null &&
@@ -237,149 +417,151 @@ class TournamentProvider with ChangeNotifier {
               )
               .length;
       print(
-        "Ronda 0 populada: $finalByeCount BYEs procesados, $finalMatchCount partidos reales asignados.",
+        "  _populateRound0: R0 populada: $finalByeCount BYEs, $finalMatchCount partidos reales.",
       );
-      if (finalByeCount != nB || finalMatchCount != nMA0) {
-        print(
-          "WARN: Conteos finales ($finalByeCount B/$finalMatchCount M) != Esperados ($nB B/$nMA0 M)",
-        );
+      if (finalByeCount != params.numByes ||
+          finalMatchCount != params.realMatchesR0) {
+        print("  _populateRound0: WARN - Conteos finales != Esperados");
       }
-      print("Bracket final generado con $nR rondas.");
     }
-    return generatedRounds;
   }
 
-  // --- selectWinner con prints de debug detallados ---
-  void selectWinner(String matchId, String winnerParticipantId) {
-    if (kDebugMode)
-      print(
-        "[Provider] selectWinner ENTRY - MatchID: $matchId, WinnerID: $winnerParticipantId",
-      );
-    if (!_isTournamentActive || isTournamentFinished) {
-      if (kDebugMode)
-        print(
-          "[Provider] selectWinner EXIT - Torneo no activo o ya finalizado.",
-        );
-      return;
-    }
-    Match? targetMatch;
-    int currentRoundIndex = -1;
-    int currentMatchIndexInRound = -1;
-    for (int r = 0; r < _rounds.length; r++) {
-      for (int m = 0; m < _rounds[r].length; m++) {
-        if (_rounds[r][m].id == matchId) {
-          targetMatch = _rounds[r][m];
-          currentRoundIndex = r;
-          currentMatchIndexInRound = m;
-          break;
-        }
-      }
-      if (targetMatch != null) break;
-    }
-    if (targetMatch == null) {
-      if (kDebugMode)
-        print("[Provider] selectWinner EXIT - Partido $matchId no encontrado.");
-      return;
-    }
-    if (targetMatch.isFinished) {
-      if (kDebugMode)
-        print(
-          "[Provider] selectWinner EXIT - Partido ${targetMatch.id} ya finalizado.",
-        );
-      return;
-    }
-    if (!targetMatch.isReadyToPlay) {
-      if (kDebugMode)
-        print(
-          "[Provider] selectWinner EXIT - Partido ${targetMatch.id} no listo (P1:${targetMatch.participant1?.name}, P2:${targetMatch.participant2?.name}).",
-        );
-      return;
-    }
-    _clearUndoState();
-    _lastAffectedMatchId = targetMatch.id;
-    _lastWinner =
-        targetMatch.participant1?.id == winnerParticipantId
-            ? targetMatch.participant1
-            : targetMatch.participant2;
-    if (kDebugMode)
-      print(
-        "[Provider] selectWinner - Found Match R:$currentRoundIndex M:$currentMatchIndexInRound. Assigning winner...",
-      );
-    targetMatch.winnerId = winnerParticipantId;
-    Participant? winnerParticipant = targetMatch.winner;
-    bool isFinalRound = currentRoundIndex == _rounds.length - 1;
-    if (kDebugMode)
-      print(
-        "[Provider] selectWinner - Check conditions: isFinalRound: $isFinalRound, winnerParticipant exists: ${winnerParticipant != null}",
-      );
-    if (!isFinalRound && winnerParticipant != null) {
-      int nextRoundIndex = currentRoundIndex + 1;
-      int nextMatchIndex = (currentMatchIndexInRound / 2).floor();
-      if (kDebugMode)
-        print(
-          "[Provider] selectWinner - Advancing winner ${winnerParticipant.name} to R:$nextRoundIndex M:$nextMatchIndex",
-        );
-      if (nextRoundIndex < _rounds.length &&
-          nextMatchIndex < _rounds[nextRoundIndex].length) {
-        Match nextMatch = _rounds[nextRoundIndex][nextMatchIndex];
-        _lastAdvancedToMatchId = nextMatch.id;
-        if (kDebugMode)
+  /// Helper para avanzar un ganador de BYE a la siguiente ronda.
+  void _advanceByeWinner(
+    List<List<Match>> rondasGeneradas,
+    Participant byeWinner,
+    int matchIndexR0,
+  ) {
+    int siguienteR = 1;
+    int siguienteM = (matchIndexR0 / 2).floor();
+    // Comprobar límites
+    if (siguienteR < rondasGeneradas.length &&
+        siguienteM < rondasGeneradas[siguienteR].length) {
+      Match siguientePartido = rondasGeneradas[siguienteR][siguienteM];
+      if (matchIndexR0 % 2 == 0) {
+        // Índice par R0 va a P1 de R1
+        siguientePartido.participant1 = byeWinner;
+        if (kDebugMode) {
           print(
-            "[Provider] selectWinner - BEFORE Assign to R:$nextRoundIndex M:$nextMatchIndex: P1=${nextMatch.participant1?.name ?? 'NULL'}, P2=${nextMatch.participant2?.name ?? 'NULL'}",
-          );
-        if (currentMatchIndexInRound % 2 == 0) {
-          _wasLastAdvanceToP1 = true;
-          nextMatch.participant1 = winnerParticipant;
-          if (kDebugMode)
-            print(
-              "[Provider] selectWinner - Assigned P1 in R:$nextRoundIndex M:$nextMatchIndex",
-            );
-        } else {
-          _wasLastAdvanceToP1 = false;
-          nextMatch.participant2 = winnerParticipant;
-          if (kDebugMode)
-            print(
-              "[Provider] selectWinner - Assigned P2 in R:$nextRoundIndex M:$nextMatchIndex",
-            );
-        }
-        if (kDebugMode)
-          print(
-            "[Provider] selectWinner - AFTER Assign to R:$nextRoundIndex M:$nextMatchIndex: P1=${nextMatch.participant1?.name ?? 'NULL'}, P2=${nextMatch.participant2?.name ?? 'NULL'}",
-          );
-        if (kDebugMode && nextRoundIndex == _rounds.length - 1) {
-          print(
-            "!! Estado del Partido Final (R:$nextRoundIndex M:$nextMatchIndex) después de avance: P1=${nextMatch.participant1?.name ?? 'NULL'}, P2=${nextMatch.participant2?.name ?? 'NULL'}",
+            "    _advanceByeWinner: Avanzando BYE ${byeWinner.name} a R:1 M:$siguienteM como P1",
           );
         }
       } else {
-        if (kDebugMode)
+        // Índice impar R0 va a P2 de R1
+        siguientePartido.participant2 = byeWinner;
+        if (kDebugMode) {
           print(
-            "[Provider] selectWinner - CRITICAL ERROR: Cannot find next match R:$nextRoundIndex M:$nextMatchIndex to advance winner.",
+            "    _advanceByeWinner: Avanzando BYE ${byeWinner.name} a R:1 M:$siguienteM como P2",
           );
+        }
       }
-    } else if (isFinalRound && winnerParticipant != null) {
-      _winner = winnerParticipant;
-      _isTournamentActive = false;
-      _lastAdvancedToMatchId = null;
-      if (kDebugMode)
-        print(
-          "[Provider] selectWinner - FINAL ROUND! Tournament Winner set: ${_winner?.name}",
-        );
     } else {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
-          "[Provider] selectWinner - No advancement/finish condition met (isFinal:$isFinalRound, winnerNull:${winnerParticipant == null})",
+          "    _advanceByeWinner: WARN - No se encontró R:$siguienteR M:$siguienteM para avanzar BYE.",
         );
+      }
     }
-    _canUndo = true;
-    if (kDebugMode)
-      print("[Provider] selectWinner - END. Notifying listeners.");
-    notifyListeners();
   }
 
+  /// Encuentra un partido por su ID y devuelve su info.
+  ({Match match, int roundIndex, int matchIndex})? _findMatchAndIndices(
+    String matchId,
+  ) {
+    for (int r = 0; r < _rounds.length; r++) {
+      for (int m = 0; m < _rounds[r].length; m++) {
+        if (_rounds[r][m].id == matchId) {
+          return (match: _rounds[r][m], roundIndex: r, matchIndex: m);
+        }
+      }
+    }
+    return null; // No encontrado
+  }
+
+  /// Avanza al ganador al siguiente partido correspondiente.
+  void _advanceWinnerToNextRound(
+    Match partidoActual,
+    Participant participanteGanador,
+    int indiceRondaActual,
+    int indicePartidoEnRonda,
+  ) {
+    int siguienteIndiceRonda = indiceRondaActual + 1;
+    int siguienteIndicePartido = (indicePartidoEnRonda / 2).floor();
+    if (kDebugMode) {
+      print(
+        "  _advanceWinner: Calculado next R:$siguienteIndiceRonda M:$siguienteIndicePartido",
+      );
+    }
+
+    // Verificar límites
+    if (siguienteIndiceRonda < _rounds.length &&
+        siguienteIndicePartido < _rounds[siguienteIndiceRonda].length) {
+      Match siguientePartido =
+          _rounds[siguienteIndiceRonda][siguienteIndicePartido];
+      _lastAdvancedToMatchId = siguientePartido.id; // Guardar para Undo
+
+      if (kDebugMode) {
+        print(
+          "  _advanceWinner: BEFORE Assign to R:$siguienteIndiceRonda M:$siguienteIndicePartido: P1=${siguientePartido.participant1?.name ?? 'NULL'}, P2=${siguientePartido.participant2?.name ?? 'NULL'}",
+        );
+      }
+
+      // Asignar a P1 si el índice actual era par, si no a P2
+      if (indicePartidoEnRonda % 2 == 0) {
+        _wasLastAdvanceToP1 = true;
+        siguientePartido.participant1 = participanteGanador;
+        if (kDebugMode) {
+          print(
+            "  _advanceWinner: Assigned P1 in R:$siguienteIndiceRonda M:$siguienteIndicePartido",
+          );
+        }
+      } else {
+        _wasLastAdvanceToP1 = false;
+        siguientePartido.participant2 = participanteGanador;
+        if (kDebugMode) {
+          print(
+            "  _advanceWinner: Assigned P2 in R:$siguienteIndiceRonda M:$siguienteIndicePartido",
+          );
+        }
+      }
+
+      if (kDebugMode) {
+        print(
+          "  _advanceWinner: AFTER Assign to R:$siguienteIndiceRonda M:$siguienteIndicePartido: P1=${siguientePartido.participant1?.name ?? 'NULL'}, P2=${siguientePartido.participant2?.name ?? 'NULL'}",
+        );
+      }
+
+      // Imprimir estado final si se acaba de llenar la final
+      if (kDebugMode && siguienteIndiceRonda == _rounds.length - 1) {
+        print(
+          "!! Estado del Partido Final (R:$siguienteIndiceRonda M:$siguienteIndicePartido) después de avance: P1=${siguientePartido.participant1?.name ?? 'NULL'}, P2=${siguientePartido.participant2?.name ?? 'NULL'}",
+        );
+      }
+    } else {
+      if (kDebugMode) {
+        print(
+          "  _advanceWinner: CRITICAL ERROR - Cannot find next match R:$siguienteIndiceRonda M:$siguienteIndicePartido.",
+        );
+      }
+    }
+  }
+
+  /// Establece el ganador final del torneo.
+  void _setTournamentWinner(Participant participanteGanador) {
+    _winner = participanteGanador;
+    _isTournamentActive = false; // Torneo terminado
+    _lastAdvancedToMatchId = null; // No avanza más
+    if (kDebugMode) {
+      print(
+        "[Provider] _setTournamentWinner: FINAL ROUND! Tournament Winner set: ${_winner?.name}",
+      );
+    }
+  }
+
+  // undoLastSelection (sin cambios internos, se podría refactorizar si se quisiera)
   void undoLastSelection() {
     if (!_canUndo || _lastAffectedMatchId == null || _lastWinner == null) {
-      if (kDebugMode) print("Nada que deshacer o estado de deshacer inválido.");
+      if (kDebugMode) print("Nada que deshacer.");
       return;
     }
     if (kDebugMode) print("Deshaciendo última selección...");
@@ -389,45 +571,49 @@ class TournamentProvider with ChangeNotifier {
       for (var match in round) {
         if (match.id == _lastAffectedMatchId) affectedMatch = match;
         if (_lastAdvancedToMatchId != null &&
-            match.id == _lastAdvancedToMatchId)
+            match.id == _lastAdvancedToMatchId) {
           advancedToMatch = match;
+        }
       }
     }
     if (affectedMatch == null) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
-          "Error Deshacer: No se encontró el partido afectado ID: $_lastAffectedMatchId",
+          "Error Deshacer: No se encontró partido afectado ID: $_lastAffectedMatchId",
         );
+      }
       _clearUndoState();
       _canUndo = false;
       notifyListeners();
       return;
     }
-    if (kDebugMode)
+    if (kDebugMode) {
       print(
         "Revirtiendo ganador en Match ID: ${affectedMatch.id}. P1=${affectedMatch.participant1?.name}, P2=${affectedMatch.participant2?.name}",
       );
+    }
     affectedMatch.winnerId = null;
     if (advancedToMatch != null) {
       if (_wasLastAdvanceToP1) {
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
             "Revirtiendo P1=${advancedToMatch.participant1?.name} en Match ID: ${advancedToMatch.id}",
           );
+        }
         advancedToMatch.participant1 = null;
       } else {
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
             "Revirtiendo P2=${advancedToMatch.participant2?.name} en Match ID: ${advancedToMatch.id}",
           );
+        }
         advancedToMatch.participant2 = null;
       }
     }
     if (_winner != null && _winner?.id == _lastWinner?.id) {
-      if (kDebugMode)
-        print(
-          "Revirtiendo campeón del torneo: ${_winner?.name}. Reactivando torneo.",
-        );
+      if (kDebugMode) {
+        print("Revirtiendo campeón del torneo: ${_winner?.name}.");
+      }
       _winner = null;
       _isTournamentActive = true;
     }
@@ -437,14 +623,15 @@ class TournamentProvider with ChangeNotifier {
     if (kDebugMode) print("Deshacer completado.");
   }
 
+  // _clearUndoState (sin cambios internos)
   void _clearUndoState() {
     _lastAffectedMatchId = null;
     _lastAdvancedToMatchId = null;
     _lastWinner = null;
-    // _originalOpponent = null; // Eliminado
     _wasLastAdvanceToP1 = false;
   }
 
+  // resetTournament (sin cambios internos)
   void resetTournament() {
     _participants = [];
     _rounds = [];
@@ -457,6 +644,7 @@ class TournamentProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // _printDebugBracket (sin cambios internos)
   void _printDebugBracket() {
     if (_rounds.isEmpty) {
       print("DEBUG BRACKET: No hay rondas generadas.");
@@ -476,4 +664,4 @@ class TournamentProvider with ChangeNotifier {
     }
     print("==== FIN DEBUG BRACKET GENERADO ====");
   }
-}
+} // Fin Clase TournamentProvider

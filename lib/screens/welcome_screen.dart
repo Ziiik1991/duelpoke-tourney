@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Para SystemNavigator
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/tournament_provider.dart';
 import 'register_participants_screen.dart';
 import '../services/audio_manager.dart';
-import 'package:flutter/foundation.dart'
-    show kDebugMode, kIsWeb; // Para kDebugMode y kIsWeb
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 
 /// Pantalla de bienvenida inicial de la aplicación.
 class WelcomeScreen extends StatefulWidget {
@@ -26,7 +25,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void dispose() {
     super.dispose();
-    // No es necesario llamar a AudioManager.instance.dispose() aquí generalmente
   }
 
   /// Reproduce el sonido de clic estándar.
@@ -36,15 +34,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtener referencia al provider (sin escuchar cambios aquí)
     final tournamentProvider = Provider.of<TournamentProvider>(
       context,
       listen: false,
     );
     // Calcular dimensiones relativas a la pantalla
     final screenWidth = MediaQuery.of(context).size.width;
-    final buttonWidth = screenWidth * 0.4; // Ancho de botón (40%)
-    const double buttonFontSize = 20.0; // Tamaño de fuente para botones
+    final buttonWidth = screenWidth * 0.4;
+    const double buttonFontSize = 20.0;
 
     if (kDebugMode) print("Building WelcomeScreen");
 
@@ -74,7 +71,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 Image.asset(
                   'assets/images/logo.png',
                   height: 120,
-                  // Widget a mostrar si el logo no carga
+
                   errorBuilder:
                       (c, e, s) => const Icon(
                         Icons.shield_outlined,
@@ -90,7 +87,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     icon: const Icon(Icons.emoji_events_outlined),
                     label: const Text('Nuevo Torneo'),
                     style: ElevatedButton.styleFrom(
-                      // Estilo personalizado de fuente
                       textStyle: GoogleFonts.lato(
                         fontSize: buttonFontSize,
                         fontWeight: FontWeight.bold,
@@ -124,7 +120,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     icon: const Icon(Icons.exit_to_app),
                     label: const Text('Salir'),
                     style: ElevatedButton.styleFrom(
-                      // Estilo personalizado (color y fuente)
+                      // Estilo personalizado
                       backgroundColor: Colors.red[800],
                       foregroundColor: Colors.white,
                       textStyle: GoogleFonts.lato(

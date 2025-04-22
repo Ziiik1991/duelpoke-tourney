@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/match.dart';
-import '../constants/layout_constants.dart'; // Importar constantes
-import 'match_widget.dart'; // Importar el widget de partido real
+import '../constants/layout_constants.dart';
+import 'match_widget.dart';
 
-/// Un widget que representa un "slot" o espacio en el bracket.
-/// Decide si mostrar un partido jugable (MatchWidget),
-/// un BYE, un placeholder de error, o un slot vacío.
 class MatchSlot extends StatelessWidget {
-  final Match? match; // El partido a mostrar (puede ser null)
+  final Match? match;
 
   const MatchSlot({
     super.key,
@@ -17,17 +14,15 @@ class MatchSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos las constantes importadas para tamaño
     const double alturaSlot = kMatchHeight;
     const double anchoSlot = kMatchWidth;
 
     return Container(
       height: alturaSlot,
-      width: anchoSlot, // El Container padre establece el tamaño
-      // decoration: BoxDecoration(border: Border.all(color: Colors.cyan.withOpacity(0.5))), // Borde de debug (opcional)
+      width: anchoSlot,
+
       child: Builder(
         builder: (context) {
-          // Usar if/else if/else para claridad
           if (match == null) {
             // --- Slot Vacío ---
             return Container(
@@ -100,12 +95,7 @@ class MatchSlot extends StatelessWidget {
               );
             }
           } else {
-            // --- Partido Normal ---
-            // Llama a MatchWidget SIN pasar widgetWidth (ya no lo necesita)
-            return MatchWidget(
-              match: match!,
-              // widgetWidth: anchoSlot <-- Ya no se pasa
-            );
+            return MatchWidget(match: match!);
           }
         },
       ),

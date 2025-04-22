@@ -1,29 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// Quitar import de GoogleFonts si ya no se usa directamente aquí
-// import 'package:google_fonts/google_fonts.dart';
 import '../models/match.dart';
 import '../models/participant.dart';
 import '../providers/tournament_provider.dart';
 import '../services/audio_manager.dart';
-import 'package:flutter/foundation.dart'; // Para kDebugMode
+import 'package:flutter/foundation.dart';
 
-/// Widget interactivo que muestra un partido individual del torneo.
-/// Versión con Estética Mejorada v1.
 class MatchWidget extends StatelessWidget {
   final Match match;
-  // Tamaño base de la fuente para los nombres de participantes
+
   final double nameFontSize;
 
-  const MatchWidget({
-    super.key,
-    required this.match,
-    this.nameFontSize = 14.0, // <-- Tamaño base aumentado
-  });
+  const MatchWidget({super.key, required this.match, this.nameFontSize = 14.0});
 
   /// Llama al provider para seleccionar el ganador del partido.
   void _selectWinner(BuildContext context, Participant? potentialWinner) {
-    // ... (Lógica interna sin cambios) ...
     if (potentialWinner == null) return;
     final provider = context.read<TournamentProvider>();
     if (kDebugMode) {
@@ -65,12 +56,10 @@ class MatchWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Obtener referencias al tema actual para usar sus colores y fuentes
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    // --- Calcular estados y estilos ---
     final p1 = match.participant1;
     final p2 = match.participant2;
     final winner = match.winner;
@@ -81,28 +70,24 @@ class MatchWidget extends StatelessWidget {
         match.isReadyToPlay &&
         !match.isFinished;
 
-    // Estilos basados en el tema y estado
     final baseStyle =
         textTheme.bodyMedium?.copyWith(
           fontSize: nameFontSize,
           color: colorScheme.onSurfaceVariant,
         ) ??
-        TextStyle(
-          fontSize: nameFontSize,
-          color: Colors.white,
-        ); // Usar color sobre surfaceVariant
+        TextStyle(fontSize: nameFontSize, color: Colors.white);
     final winnerStyle = baseStyle.copyWith(
       fontWeight: FontWeight.bold,
       color: colorScheme.secondary,
-    ); // Ganador en ámbar
+    );
     final loserStyle = baseStyle.copyWith(
       color: colorScheme.outline,
       decoration: TextDecoration.lineThrough,
-    ); // Perdedor con color outline
+    );
     final tbdStyle = baseStyle.copyWith(
       color: colorScheme.outlineVariant,
       fontStyle: FontStyle.italic,
-    ); // TBD con color outlineVariant
+    );
 
     TextStyle p1Style;
     TextStyle p2Style;
@@ -122,17 +107,14 @@ class MatchWidget extends StatelessWidget {
         horizontal: 10.0,
       ), // Padding interno ajustado
       decoration: BoxDecoration(
-        // Fondo: Color 'surfaceVariant' del tema con opacidad
         color: colorScheme.surfaceVariant.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(10.0), // Bordes más redondeados
+        borderRadius: BorderRadius.circular(10.0),
         border: Border.all(
-          // Color: Secundario (ámbar) si se puede jugar, si no 'outlineVariant'
           color: canPlay ? colorScheme.secondary : colorScheme.outlineVariant,
-          // Grosor: Más grueso si se puede jugar
+
           width: canPlay ? 1.8 : 1.2,
         ),
         boxShadow: [
-          // Sombra suave
           BoxShadow(
             color: Colors.black.withOpacity(0.25),
             blurRadius: 4,
@@ -142,8 +124,7 @@ class MatchWidget extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment:
-            MainAxisAlignment.center, // Centrar verticalmente el contenido
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _buildParticipantRow(
             context: context,
@@ -153,7 +134,7 @@ class MatchWidget extends StatelessWidget {
             onTap:
                 canPlay && p1 != null ? () => _selectWinner(context, p1) : null,
           ),
-          // Divisor más sutil usando color del tema
+
           Divider(
             height: 1,
             thickness: 0.5,
@@ -180,10 +161,10 @@ class MatchWidget extends StatelessWidget {
     required bool isWinner,
     required VoidCallback? onTap,
   }) {
-    const double iconSize = 16.0; // Iconos ligeramente más grandes
+    const double iconSize = 16.0;
     const double iconSpacing = 5.0;
     bool showTapIcon = (onTap != null);
-    final colorScheme = Theme.of(context).colorScheme; // Usar colores del tema
+    final colorScheme = Theme.of(context).colorScheme;
 
     return InkWell(
       onTap: onTap,
@@ -223,7 +204,7 @@ class MatchWidget extends StatelessWidget {
                 ),
               ],
             ),
-            // Icono Derecha: Tocar (si aplica)
+
             if (showTapIcon)
               Icon(
                 Icons.touch_app,

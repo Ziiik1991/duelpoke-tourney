@@ -1,26 +1,18 @@
 import 'dart:math';
-import 'package:flutter/foundation.dart'; // Para kDebugMode
-import 'package:flutter/painting.dart'; // Para Offset
-// Asegúrate que las rutas sean correctas
+import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import '../models/match.dart';
 import '../constants/layout_constants.dart';
 
-// Define un tipo 'record' para devolver el resultado del cálculo de forma ordenada.
 typedef BracketLayoutResult =
-    ({
-      Map<String, Offset> positions, // Nombre del campo: positions
-      double totalWidth, // Nombre del campo: totalWidth
-      double totalHeight, // Nombre del campo: totalHeight
-    });
+    ({Map<String, Offset> positions, double totalWidth, double totalHeight});
 
-/// Clase de utilidad estática para calcular las posiciones del bracket.
 class BracketCalculator {
   /// Calcula posiciones para layout Izq/Der->Centro (Y Simple basada en índice 'm').
   /// Devuelve un BracketLayoutResult.
   static BracketLayoutResult calculateMirroredLayoutPositions(
     List<List<Match>> rounds,
   ) {
-    // Variables locales para el cálculo
     Map<String, Offset> posicionesPartidos = {};
     double anchoTotalBracket = 0;
     double altoTotalBracket = 0;
@@ -60,10 +52,10 @@ class BracketCalculator {
             ? (maxPartidosPorLadoR0 - 1) * espaciadoVertical
             : 0) +
         kMatchHeight;
-    altoTotalBracket += kMatchHeight * 3; // Padding
+    altoTotalBracket += kMatchHeight * 3;
 
     // --- Calcular Posiciones ---
-    // (Lógica interna de cálculo de posiciones - sin cambios respecto a la última versión)
+
     for (int r = 0; r < rondasTotales; r++) {
       int partidosEnEstaRonda = rounds[r].length;
       if (partidosEnEstaRonda == 0) continue;
@@ -120,8 +112,8 @@ class BracketCalculator {
     // --- Devolver el resultado usando los NOMBRES CORRECTOS del typedef ---
     return (
       positions: posicionesPartidos,
-      totalWidth: anchoTotalBracket, // <-- Asegúrate que sea totalWidth
-      totalHeight: altoTotalBracket, // <-- Asegúrate que sea totalHeight
+      totalWidth: anchoTotalBracket,
+      totalHeight: altoTotalBracket,
     );
-  } // Fin calculateMirroredLayoutPositions
-} // Fin clase BracketCalculator
+  }
+}

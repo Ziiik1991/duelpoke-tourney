@@ -2,13 +2,12 @@ import 'participant.dart';
 
 /// Representa un partido individual dentro de una ronda del torneo.
 class Match {
-  final String id; // Identificador único del partido
-  Participant? participant1; // Primer participante (o null si aún no definido)
-  Participant? participant2; // Segundo participante (o null si aún no definido)
-  String? winnerId; // ID del participante ganador (o null si no ha terminado)
-  final int roundIndex; // Índice de la ronda a la que pertenece (0, 1, 2...)
-  final int
-  matchIndexInRound; // Índice del partido dentro de su ronda (0, 1, 2...)
+  final String id;
+  Participant? participant1;
+  Participant? participant2;
+  String? winnerId;
+  final int roundIndex;
+  final int matchIndexInRound;
 
   // Mapa estático temporal para buscar participantes por ID al cargar desde JSON
   static Map<String, Participant> _participantLookup = {};
@@ -27,15 +26,13 @@ class Match {
     required this.matchIndexInRound,
   });
 
-  // --- Getters (propiedades calculadas) ---
-
   /// Devuelve el objeto Participant ganador (o null).
   Participant? get winner {
     if (winnerId == null) return null;
     // Busca primero entre los participantes directos del partido
     if (participant1?.id == winnerId) return participant1;
     if (participant2?.id == winnerId) return participant2;
-    // Si no, intenta buscar en el mapa global (útil al cargar de JSON)
+    // Si no, intenta buscar en el mapa global
     return _participantLookup[winnerId];
   }
 
@@ -53,20 +50,19 @@ class Match {
           participant1?.id == winnerId ||
           participant2?.id == winnerId);
 
-  // Representación en texto para debugging
   @override
   String toString() {
-    String p1N = participant1?.name ?? 'TBD'; // TBD = To Be Determined
+    String p1N = participant1?.name ?? 'TBD';
     String p2N = participant2?.name ?? 'TBD';
     String wN = winner?.name ?? 'None';
     return 'Match{id:$id,R:$roundIndex,M:$matchIndexInRound,$p1N vs $p2N,W:$wN}';
   }
 
-  // --- JSON Serialization (si se usa save/load) ---
+  // --- JSON Serialization
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'p1Id': participant1?.id, // Guardar solo IDs
+      'p1Id': participant1?.id,
       'p2Id': participant2?.id,
       'winnerId': winnerId,
       'roundIndex': roundIndex,

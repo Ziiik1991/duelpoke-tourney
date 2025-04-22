@@ -1,11 +1,10 @@
 /// Representa a un participante individual en el torneo.
 class Participant {
-  final String id; // Identificador único
-  final String name; // Nombre del participante
+  final String id;
+  final String name;
 
   Participant({required this.id, required this.name});
 
-  // Sobrescribir igualdad para comparar por ID
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -13,17 +12,15 @@ class Participant {
           runtimeType == other.runtimeType &&
           id == other.id;
 
-  // Sobrescribir hashCode basado en ID
   @override
   int get hashCode => id.hashCode;
 
-  // Representación en texto para debugging
   @override
   String toString() {
     return 'Participant{id: $id, name: $name}';
   }
 
-  // --- JSON Serialization (si se usa save/load) ---
+  // --- JSON Serialization
   Map<String, dynamic> toJson() {
     return {'id': id, 'name': name};
   }

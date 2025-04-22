@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// Importaciones de nuestro proyecto
 import '../providers/tournament_provider.dart';
 import '../widgets/match_slot.dart';
 import '../models/match.dart';
 import '../services/audio_manager.dart';
 import 'welcome_screen.dart';
 import 'final_screen.dart';
-import '../constants/layout_constants.dart'; // Constantes
-// Importaciones de Flutter/Dart
-import 'package:flutter/foundation.dart'; // Para kDebugMode
-import 'dart:math'; // Para max, min
+import '../constants/layout_constants.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:math';
 
-/// Pantalla principal donde se visualiza y juega el bracket del torneo.
-/// USA LAYOUT LINEAL (IZQ -> DER) con Y Centrada por Padres.
 class TournamentScreen extends StatefulWidget {
   const TournamentScreen({super.key});
   @override
@@ -173,7 +169,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
     });
   }
 
-  /// Calcula layout LINEAL Izquierda->Derecha PERO CENTRANDO Y CON PADRES.
+  /// Calcula layout LINEAL Izquierda->Derecha
   void _recalculateLayout() {
     final provider = context.read<TournamentProvider>();
     final List<List<Match>> rondas = provider.rounds;
@@ -288,8 +284,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
       altoActual = max(_altoTotalBracket, maxY + kMatchHeight * 1.5);
     }
 
-    // --- ORDEN: Líneas -> Partidos -> Títulos ---
-
     // 1. Painter (Lineal, usa color rojo definido abajo)
     if (_posicionesPartidos.isNotEmpty && rondasTotales > 0) {
       stackChildren.add(
@@ -312,7 +306,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
             return const SizedBox.shrink();
           }
           final Widget widgetSlot = MatchSlot(match: partido);
-          // if (kDebugMode) { print("Rendering Match R:${partido.roundIndex} M:${partido.matchIndexInRound} at Pos: (${posicion.dx.toStringAsFixed(1)}, ${posicion.dy.toStringAsFixed(1)})"); }
+
           return Positioned(
             left: posicion.dx,
             top: posicion.dy,
@@ -347,7 +341,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
         String textoTitulo = _getRoundTitle(r, rondasTotales);
         double tituloX = r * pasoHorizontal;
 
-        // --- Calcular Y en Cascada y MÁS SEPARADO ---
+        // --- Calcular Y en Cascada
         double tituloY;
         double minYEnEstaRonda = double.infinity;
         if (provider.rounds.length > r && provider.rounds[r].isNotEmpty) {
@@ -362,20 +356,17 @@ class _TournamentScreenState extends State<TournamentScreen> {
         }
 
         if (minYEnEstaRonda != double.infinity) {
-          double offsetYCascada =
-              r * 15.0; // Cascada más suave (ajusta el 15.0)
-          // RESTAR MENOS (ej. 35) para que quede MÁS ARRIBA (más separado)
-          tituloY =
-              minYEnEstaRonda - 100.0 + offsetYCascada; // <-- Ajusta este 35.0
+          double offsetYCascada = r * 15.0; // Cascada más suave
+
+          tituloY = minYEnEstaRonda - 100.0 + offsetYCascada;
         } else {
           tituloY = (kMatchHeight * 0.8) + (r * 15.0);
         } // Fallback
-        tituloY = max(30.0, tituloY); // <-- Aumentar Mínimo Y a 30.0
-        // --- Fin Cálculo Y ---
+        tituloY = max(30.0, tituloY);
 
         stackChildren.add(
           Positioned(
-            left: tituloX + (kMatchWidth / 2), // Centrar contenedor
+            left: tituloX + (kMatchWidth / 2),
             top: tituloY,
             child: Transform.translate(
               offset: Offset(
@@ -463,24 +454,20 @@ class _TournamentScreenState extends State<TournamentScreen> {
       ),
     );
   }
-} // Fin clase _TournamentScreenState
+}
 
 /// Dibuja las líneas conectores para un bracket LINEAL (Izq -> Der).
-/// CON COLOR ROJO.
+
 class BracketLinesPainter extends CustomPainter {
   final List<List<Match>> rounds;
   final Map<String, Offset> positions;
   final Paint linePaint;
 
   BracketLinesPainter({required this.rounds, required this.positions})
-    // --- COLOR DE LÍNEA ROJO ---
     : linePaint =
           Paint()
-            ..color =
-                Colors
-                    .redAccent // <-- COLOR CAMBIADO
-            ..strokeWidth =
-                1.8 // <-- Grosor ligero aumentado
+            ..color = Colors.redAccent
+            ..strokeWidth = 1.8
             ..style = PaintingStyle.stroke;
 
   @override

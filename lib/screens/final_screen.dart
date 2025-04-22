@@ -1,17 +1,16 @@
-import 'dart:typed_data'; // Para manejar bytes (PDF, imágenes)
-import 'dart:convert'; // Para Base64
+import 'dart:typed_data';
+import 'dart:convert';
 import 'dart:io';
-import 'dart:html' as html; // Específico para web (descargar PDF)
-import 'package:flutter/foundation.dart'; // Para kIsWeb, kDebugMode
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'
-    show rootBundle; // Para cargar assets (logo)
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path_provider/path_provider.dart'; // Para obtener rutas de guardado
-import 'package:pdf/pdf.dart'; // Clases base de la librería PDF
-import 'package:pdf/widgets.dart' as pw; // Widgets para construir el PDF
-import 'package:open_filex/open_filex.dart'; // Para abrir el PDF guardado
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:open_filex/open_filex.dart';
 import '../providers/tournament_provider.dart';
 import '../services/audio_manager.dart';
 import 'welcome_screen.dart';
@@ -33,21 +32,21 @@ class _FinalScreenState extends State<FinalScreen>
   @override
   void initState() {
     super.initState();
-    // Configurar controlador de animación
+
     _animationController = AnimationController(
-      vsync: this, // Necesario para TickerProvider
-      duration: const Duration(milliseconds: 1200), // Duración de la animación
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
     );
-    // Definir curvas de animación
+
     _scaleAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.elasticOut,
-    ); // Efecto rebote
+    );
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
       curve: const Interval(0.3, 1.0, curve: Curves.easeIn),
-    ); // Aparece después
-    // Iniciar animación cuando el widget esté listo
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _animationController.forward();
     });
@@ -55,7 +54,7 @@ class _FinalScreenState extends State<FinalScreen>
 
   @override
   void dispose() {
-    _animationController.dispose(); // Liberar controlador
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -67,18 +66,18 @@ class _FinalScreenState extends State<FinalScreen>
   /// Reinicia el torneo y vuelve a la pantalla de bienvenida.
   void _startNewTournament() {
     _playClickSound();
-    context.read<TournamentProvider>().resetTournament(); // Limpia el provider
-    // Navega reemplazando todas las pantallas anteriores
+    context.read<TournamentProvider>().resetTournament();
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-      (r) => false, // Elimina todas las rutas anteriores
+      (r) => false,
     );
   }
 
   /// Genera un PDF de certificado y lo guarda o descarga.
   Future<void> _generateAndSavePdf(String winnerName) async {
-    final pdf = pw.Document(); // Crear documento PDF
-    pw.MemoryImage? logoImage; // Variable para guardar la imagen del logo
+    final pdf = pw.Document();
+    pw.MemoryImage? logoImage;
 
     // Intentar cargar el logo desde los assets
     try {
@@ -89,26 +88,20 @@ class _FinalScreenState extends State<FinalScreen>
       if (kDebugMode) print("Logo cargado para PDF.");
     } catch (e) {
       if (kDebugMode) print("Error loading logo for PDF: $e");
-      // Continuar sin logo si falla la carga
     }
 
     // --- Añadir página al PDF ---
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4, // Tamaño estándar
+        pageFormat: PdfPageFormat.a4,
         build: (pw.Context context) {
-          // Función que construye el contenido
-          // Usar widgets de la librería 'pdf/widgets.dart' (prefijo 'pw')
           return pw.Center(
             child: pw.Padding(
               padding: const pw.EdgeInsets.all(30),
               child: pw.Column(
-                mainAxisAlignment:
-                    pw.MainAxisAlignment.spaceAround, // Espacio vertical
-                crossAxisAlignment:
-                    pw.CrossAxisAlignment.center, // Centrado horizontal
+                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
-                  // Mostrar logo si se cargó, si no un placeholder
                   if (logoImage != null)
                     pw.Container(height: 80, child: pw.Image(logoImage)),
                   if (logoImage == null)
@@ -146,7 +139,7 @@ class _FinalScreenState extends State<FinalScreen>
                         style: const pw.TextStyle(fontSize: 14),
                       ),
                       pw.SizedBox(height: 10),
-                      // Nombre del ganador resaltado
+
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(
                           horizontal: 20,
@@ -176,7 +169,7 @@ class _FinalScreenState extends State<FinalScreen>
                         textAlign: pw.TextAlign.center,
                       ),
                       pw.SizedBox(height: 10),
-                      // Título obtenido
+
                       pw.Text(
                         '¡Maestro Pokémon!',
                         style: pw.TextStyle(
@@ -203,49 +196,46 @@ class _FinalScreenState extends State<FinalScreen>
           );
         },
       ),
-    ); // Fin addPage
+    );
 
     // --- Guardar o Descargar el PDF ---
     try {
       if (kIsWeb) {
         // Si estamos en la web
-        final Uint8List pdfBytes = await pdf.save(); // Obtener bytes del PDF
-        final base64Pdf = base64Encode(pdfBytes); // Codificar a Base64
-        // Crear un link invisible para iniciar la descarga en el navegador
+        final Uint8List pdfBytes = await pdf.save();
+        final base64Pdf = base64Encode(pdfBytes);
+
         final anchor =
             html.AnchorElement(href: 'data:application/pdf;base64,$base64Pdf')
               ..setAttribute(
                 "download",
                 "certificado_maestro_${winnerName.replaceAll(' ', '_')}.pdf",
-              ) // Nombre del archivo
-              ..click(); // Simular clic para descargar
-        html.document.body?.children.remove(anchor); // Limpiar el link del HTML
+              )
+              ..click();
+        html.document.body?.children.remove(anchor);
         if (mounted)
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Descargando PDF...')));
       } else {
         // Si estamos en Móvil o Escritorio
-        // Obtener directorio de guardado apropiado
+
         final Directory directory;
         if (Platform.isAndroid) {
           directory =
               await getExternalStorageDirectory() ??
               await getApplicationDocumentsDirectory();
-        } // Descargas o Documentos en Android
-        else {
+        } else {
           directory = await getApplicationDocumentsDirectory();
-        } // Documentos en iOS, macOS, Linux, Windows
+        }
 
         final String filePath =
             '${directory.path}/certificado_maestro_${winnerName.replaceAll(' ', '_')}.pdf';
         final File file = File(filePath);
-        await file.writeAsBytes(
-          await pdf.save(),
-        ); // Escribir los bytes al archivo
+        await file.writeAsBytes(await pdf.save());
 
         if (kDebugMode) print("PDF guardado en: $filePath");
-        // Mostrar notificación con opción para abrir el archivo
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -273,21 +263,17 @@ class _FinalScreenState extends State<FinalScreen>
           SnackBar(content: Text("Error al generar o guardar PDF.")),
         );
     }
-  } // Fin _generateAndSavePdf
+  }
 
   @override
   Widget build(BuildContext context) {
     // Obtener el ganador del provider
     final winner = context.watch<TournamentProvider>().winner;
-    final String winnerName =
-        winner?.name ??
-        'Campeón Desconocido'; // Nombre por defecto si algo falla
-    final String masterTitle =
-        'Maestro Pokémon\n$winnerName'; // Texto principal
+    final String winnerName = winner?.name ?? 'Campeón Desconocido';
+    final String masterTitle = 'Maestro Pokémon\n$winnerName';
 
     return Scaffold(
       body: Container(
-        // Fondo de victoria
         decoration: BoxDecoration(
           image: DecorationImage(
             image: const AssetImage('assets/images/victory_bg.png'),
@@ -359,7 +345,7 @@ class _FinalScreenState extends State<FinalScreen>
                     textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(height: 60), // Espacio grande
+                const SizedBox(height: 60),
                 // Botón "Jugar Nuevo Torneo"
                 FadeTransition(
                   opacity: _fadeAnimation,
