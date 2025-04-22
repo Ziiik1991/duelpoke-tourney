@@ -1,21 +1,22 @@
 import 'dart:typed_data';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:path_provider/path_provider.dart'; // Para obtener rutas nativas
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:open_filex/open_filex.dart';
+import 'package:open_filex/open_filex.dart'; // Para abrir archivo nativo
+// --- NUEVA IMPORTACIÓN ---
+import '../utils/pdf_saver.dart'; // Importa el archivo puente condicional
+// --- FIN NUEVA IMPORTACIÓN ---
 import '../providers/tournament_provider.dart';
 import '../services/audio_manager.dart';
 import 'welcome_screen.dart';
 
-/// Pantalla que se muestra al finalizar el torneo, mostrando al ganador.
+/// Pantalla que se muestra al finalizar el torneo.
 class FinalScreen extends StatefulWidget {
   const FinalScreen({super.key});
   @override
@@ -24,7 +25,6 @@ class FinalScreen extends StatefulWidget {
 
 class _FinalScreenState extends State<FinalScreen>
     with SingleTickerProviderStateMixin {
-  // Controladores para animaciones de entrada
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -32,12 +32,10 @@ class _FinalScreenState extends State<FinalScreen>
   @override
   void initState() {
     super.initState();
-
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-
     _scaleAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.elasticOut,
@@ -46,7 +44,6 @@ class _FinalScreenState extends State<FinalScreen>
       parent: _animationController,
       curve: const Interval(0.3, 1.0, curve: Curves.easeIn),
     );
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _animationController.forward();
     });
@@ -58,28 +55,23 @@ class _FinalScreenState extends State<FinalScreen>
     super.dispose();
   }
 
-  /// Reproduce sonido de clic.
   void _playClickSound() {
     AudioManager.instance.playClickSound();
   }
 
-  /// Reinicia el torneo y vuelve a la pantalla de bienvenida.
   void _startNewTournament() {
     _playClickSound();
     context.read<TournamentProvider>().resetTournament();
-
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const WelcomeScreen()),
       (r) => false,
     );
   }
 
-  /// Genera un PDF de certificado y lo guarda o descarga.
+  /// Genera un PDF de certificado y lo guarda (nativo) o descarga (web).
   Future<void> _generateAndSavePdf(String winnerName) async {
     final pdf = pw.Document();
     pw.MemoryImage? logoImage;
-
-    // Intentar cargar el logo desde los assets
     try {
       final ByteData logoBytes = await rootBundle.load(
         'assets/images/logo.png',
@@ -90,7 +82,7 @@ class _FinalScreenState extends State<FinalScreen>
       if (kDebugMode) print("Error loading logo for PDF: $e");
     }
 
-    // --- Añadir página al PDF ---
+    // --- Construcción del PDF (sin cambios) ---
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -109,8 +101,6 @@ class _FinalScreenState extends State<FinalScreen>
                       height: 80,
                       child: pw.Text('[Logo no disponible]'),
                     ),
-
-                  // Título del certificado
                   pw.Column(
                     children: [
                       pw.Text(
@@ -130,8 +120,6 @@ class _FinalScreenState extends State<FinalScreen>
                       ),
                     ],
                   ),
-
-                  // Sección del Ganador
                   pw.Column(
                     children: [
                       pw.Text(
@@ -139,7 +127,6 @@ class _FinalScreenState extends State<FinalScreen>
                         style: const pw.TextStyle(fontSize: 14),
                       ),
                       pw.SizedBox(height: 10),
-
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(
                           horizontal: 20,
@@ -169,7 +156,6 @@ class _FinalScreenState extends State<FinalScreen>
                         textAlign: pw.TextAlign.center,
                       ),
                       pw.SizedBox(height: 10),
-
                       pw.Text(
                         '¡Maestro Pokémon!',
                         style: pw.TextStyle(
@@ -181,8 +167,6 @@ class _FinalScreenState extends State<FinalScreen>
                       ),
                     ],
                   ),
-
-                  // Fecha de emisión
                   pw.Text(
                     'Emitido el: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                     style: const pw.TextStyle(
@@ -198,29 +182,22 @@ class _FinalScreenState extends State<FinalScreen>
       ),
     );
 
-    // --- Guardar o Descargar el PDF ---
+    // --- Guardado/Descarga (MODIFICADO) ---
     try {
-      if (kIsWeb) {
-        // Si estamos en la web
-        final Uint8List pdfBytes = await pdf.save();
-        final base64Pdf = base64Encode(pdfBytes);
+      final Uint8List pdfBytes = await pdf.save(); // Generar bytes
+      final String fileName =
+          "certificado_maestro_${winnerName.replaceAll(' ', '_')}.pdf";
 
-        final anchor =
-            html.AnchorElement(href: 'data:application/pdf;base64,$base64Pdf')
-              ..setAttribute(
-                "download",
-                "certificado_maestro_${winnerName.replaceAll(' ', '_')}.pdf",
-              )
-              ..click();
-        html.document.body?.children.remove(anchor);
-        if (mounted) {
+      if (kIsWeb) {
+        // Si es WEB
+        // Llama a la función importada condicionalmente (usará pdf_saver_web.dart)
+        await savePdfFile(pdfBytes, fileName);
+        if (mounted)
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Descargando PDF...')));
-        }
       } else {
-        // Si estamos en Móvil o Escritorio
-
+        // Si es NATIVO (macOS, Windows, etc.)
         final Directory directory;
         if (Platform.isAndroid) {
           directory =
@@ -228,27 +205,31 @@ class _FinalScreenState extends State<FinalScreen>
               await getApplicationDocumentsDirectory();
         } else {
           directory = await getApplicationDocumentsDirectory();
-        }
-
-        final String filePath =
-            '${directory.path}/certificado_maestro_${winnerName.replaceAll(' ', '_')}.pdf';
+        } // Documentos para Desktop/iOS
+        final String filePath = '${directory.path}/$fileName';
         final File file = File(filePath);
-        await file.writeAsBytes(await pdf.save());
-
+        await file.writeAsBytes(pdfBytes); // Guardar archivo
         if (kDebugMode) print("PDF guardado en: $filePath");
 
+        // Mostrar SnackBar con botón "Abrir" visible
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('PDF guardado en ${directory.path}'),
-              duration: Duration(seconds: 5),
+              content: Text(
+                'PDF Guardado en Documentos.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              duration: const Duration(seconds: 12),
               action: SnackBarAction(
                 label: 'Abrir',
+                textColor: Theme.of(context).colorScheme.secondary,
                 onPressed: () async {
                   try {
                     await OpenFilex.open(filePath);
                   } catch (e) {
-                    if (kDebugMode) print("Error al abrir PDF: $e");
+                    if (kDebugMode)
+                      print("Error al abrir PDF con OpenFilex: $e");
                   }
                 },
               ),
@@ -257,23 +238,21 @@ class _FinalScreenState extends State<FinalScreen>
         }
       }
     } catch (e) {
-      // Manejar errores al guardar/descargar
-      if (kDebugMode) print("Error al generar/guardar PDF: $e");
-      if (mounted) {
+      // Manejar errores
+      if (kDebugMode) print("Error al generar/guardar/descargar PDF: $e");
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error al generar o guardar PDF.")),
         );
-      }
     }
-  }
+  } // Fin _generateAndSavePdf
 
   @override
   Widget build(BuildContext context) {
-    // Obtener el ganador del provider
+    // ... (build igual que antes) ...
     final winner = context.watch<TournamentProvider>().winner;
     final String winnerName = winner?.name ?? 'Campeón Desconocido';
     final String masterTitle = 'Maestro Pokémon\n$winnerName';
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -284,12 +263,10 @@ class _FinalScreenState extends State<FinalScreen>
         ),
         child: Center(
           child: SingleChildScrollView(
-            // Para pantallas pequeñas
             padding: const EdgeInsets.all(20.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Icono de trofeo animado
                 ScaleTransition(
                   scale: _scaleAnimation,
                   child: const Icon(
@@ -306,7 +283,6 @@ class _FinalScreenState extends State<FinalScreen>
                   ),
                 ),
                 const SizedBox(height: 30),
-                // Texto "Felicidades" animado
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Text(
@@ -326,7 +302,6 @@ class _FinalScreenState extends State<FinalScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Nombre del ganador animado
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Text(
@@ -348,7 +323,6 @@ class _FinalScreenState extends State<FinalScreen>
                   ),
                 ),
                 const SizedBox(height: 60),
-                // Botón "Jugar Nuevo Torneo"
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: ElevatedButton.icon(
@@ -370,7 +344,6 @@ class _FinalScreenState extends State<FinalScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Botón "Guardar Certificado PDF"
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: ElevatedButton.icon(
