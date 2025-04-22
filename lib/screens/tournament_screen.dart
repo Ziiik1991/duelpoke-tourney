@@ -56,15 +56,17 @@ class _TournamentScreenState extends State<TournamentScreen> {
     if (!mounted) return;
     final p = _tournamentProviderRef;
     if (p == null) return;
-    if (kDebugMode)
+    if (kDebugMode) {
       print("TournamentProvider updated, checking finish state...");
+    }
     _checkIfTournamentFinished(p);
   }
 
   void _checkIfTournamentFinished(TournamentProvider p) {
     if (p.isTournamentFinished && p.winner != null) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print("Tournament finished! Navigating to FinalScreen...");
+      }
       try {
         p.removeListener(_onTournamentUpdate);
       } catch (e) {
@@ -175,20 +177,22 @@ class _TournamentScreenState extends State<TournamentScreen> {
     final List<List<Match>> rondas = provider.rounds;
 
     if (rondas.isEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _anchoTotalBracket = 0;
           _altoTotalBracket = 0;
           _posicionesPartidos.clear();
         });
+      }
       return;
     }
     final int rondasTotales = rondas.length;
 
-    if (kDebugMode)
+    if (kDebugMode) {
       print(
         "Calculating LINEAR layout (Parent Avg Y) for $rondasTotales rounds...",
       );
+    }
     Map<String, Offset> nuevasPosiciones = {};
     double maxAlturaCalculada = 0;
     double maxAnchoCalculado = 0;

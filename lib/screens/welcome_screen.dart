@@ -133,13 +133,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       _playClickSound();
                       // Salir de la app (solo funciona en móvil/escritorio)
                       if (!kIsWeb) {
-                        if (kDebugMode)
+                        if (kDebugMode) {
                           print("Attempting SystemNavigator.pop()");
+                        }
                         SystemNavigator.pop();
                       } else {
                         // En web, mostrar mensaje
-                        if (kDebugMode)
+                        if (kDebugMode) {
                           print("Cannot pop on web, showing SnackBar.");
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(

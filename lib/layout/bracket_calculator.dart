@@ -28,10 +28,11 @@ class BracketCalculator {
       return (positions: {}, totalWidth: 0, totalHeight: 0);
     } // Nombres correctos
 
-    if (kDebugMode)
+    if (kDebugMode) {
       print(
         "[Calculator] Calculating MIRRORED layout (Simple Index Y - Attempt 7) for $rondasTotales rounds...",
       );
+    }
 
     // Usar constantes importadas
     final double espaciadoVertical = kVerticalSpacing;

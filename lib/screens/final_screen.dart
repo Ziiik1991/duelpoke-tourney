@@ -213,10 +213,11 @@ class _FinalScreenState extends State<FinalScreen>
               )
               ..click();
         html.document.body?.children.remove(anchor);
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Descargando PDF...')));
+        }
       } else {
         // Si estamos en Móvil o Escritorio
 
@@ -258,10 +259,11 @@ class _FinalScreenState extends State<FinalScreen>
     } catch (e) {
       // Manejar errores al guardar/descargar
       if (kDebugMode) print("Error al generar/guardar PDF: $e");
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error al generar o guardar PDF.")),
         );
+      }
     }
   }
 

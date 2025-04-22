@@ -32,10 +32,11 @@ class MatchWidget extends StatelessWidget {
     if (provider.isTournamentActive &&
         match.isReadyToPlay &&
         !match.isFinished) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
           "[MatchWidget] ¡Condiciones OK para ${match.id}! Llamando a provider.selectWinner...",
         );
+      }
       AudioManager.instance.playClickSound();
       provider.selectWinner(match.id, potentialWinner.id);
       final bool tournamentHasJustFinished =
@@ -43,14 +44,16 @@ class MatchWidget extends StatelessWidget {
       if (!tournamentHasJustFinished) {
         AudioManager.instance.playWinMatchSound();
       } else {
-        if (kDebugMode)
+        if (kDebugMode) {
           print("[MatchWidget] La selección finalizó el torneo...");
+        }
       }
     } else {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
           "[MatchWidget] Condiciones NO OK para ${match.id}. Selección ignorada.",
         );
+      }
     }
   }
 

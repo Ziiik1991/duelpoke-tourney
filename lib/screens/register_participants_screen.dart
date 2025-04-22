@@ -76,10 +76,11 @@ class _RegisterParticipantsScreenState
           indiceInsercion,
           duration: const Duration(milliseconds: 300),
         );
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
             "Added participant '${nuevoParticipante.name}' locally and inserting at index $indiceInsercion",
           );
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
@@ -90,8 +91,9 @@ class _RegisterParticipantsScreenState
           }
         });
       } else {
-        if (kDebugMode && provider.tournamentError != null)
+        if (kDebugMode && provider.tournamentError != null) {
           print("Add participant failed. Error: ${provider.tournamentError}");
+        }
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,10 +113,11 @@ class _RegisterParticipantsScreenState
     if (index < 0 ||
         index >= _participantsList.length ||
         _participantsList[index].id != participantToRemove.id) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
           "Error: Invalid index $index or participant mismatch for removal.",
         );
+      }
       int indiceCorrecto = _participantsList.indexWhere(
         (p) => p.id == participantToRemove.id,
       );
@@ -122,10 +125,11 @@ class _RegisterParticipantsScreenState
       index = indiceCorrecto;
     }
     final Participant elemento = _participantsList[index];
-    if (kDebugMode)
+    if (kDebugMode) {
       print(
         "Attempting to remove participant ${elemento.name} at index $index",
       );
+    }
     provider.removeParticipant(participantToRemove.id);
     _participantsList.removeAt(index);
     _listKey.currentState?.removeItem(
@@ -158,10 +162,11 @@ class _RegisterParticipantsScreenState
     Animation<double> animation,
   ) {
     if (index < 0 || index >= _participantsList.length) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
           "Error: buildAnimatedItem invalid index $index, list length is ${_participantsList.length}",
         );
+      }
       return const SizedBox.shrink();
     }
     final p = _participantsList[index];
@@ -191,8 +196,9 @@ class _RegisterParticipantsScreenState
         MaterialPageRoute(builder: (context) => const TournamentScreen()),
       );
     } else {
-      if (kDebugMode && provider.tournamentError != null)
+      if (kDebugMode && provider.tournamentError != null) {
         print("Failed to start tournament. Error: ${provider.tournamentError}");
+      }
     }
   }
 
