@@ -25,7 +25,7 @@ class Participant {
 
   // --- JSON Serialization (si se usa save/load) ---
   Map<String, dynamic> toJson() {
-    return { 'id': id, 'name': name, };
+    return {'id': id, 'name': name};
   }
 
   factory Participant.fromJson(Map<String, dynamic> json) {
