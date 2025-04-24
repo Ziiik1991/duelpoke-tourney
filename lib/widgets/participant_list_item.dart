@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode; // Para kDebugMode
-import '../models/participant.dart'; // Asegúrate que la ruta sea correcta
+import 'package:flutter/foundation.dart' show kDebugMode; 
+import '../models/participant.dart'; 
 
 /// Widget para mostrar un participante individual en la lista de registro.
-/// Versión con Estética Mejorada v2 (Usa ListTile).
 class ParticipantListItem extends StatelessWidget {
   final Participant participant;
   final VoidCallback
-  onRemove; // Función a llamar cuando se presiona el botón de eliminar
+  onRemove; 
   final bool
-  isRemoving; // Indica si se está animando la eliminación (para estilo)
+  isRemoving; 
 
   const ParticipantListItem({
     super.key,
@@ -33,7 +32,7 @@ class ParticipantListItem extends StatelessWidget {
             ) // Color de error al borrar
             : colorScheme.surfaceContainerHighest.withOpacity(
               0.9,
-            ); // Color de superficie del tema
+            ); 
 
     // Definir forma con borde redondeado
     final ShapeBorder shape = RoundedRectangleBorder(
@@ -91,7 +90,7 @@ class ParticipantListItem extends StatelessWidget {
             onPressed: onRemove, // Llama a la función pasada como parámetro
             splashRadius: 22, // Área de efecto al tocar
             visualDensity: VisualDensity.compact, // Más compacto
-            padding: EdgeInsets.zero, // Minimizar padding extra del botón
+            padding: EdgeInsets.zero, // Sin padding extra
             constraints:
                 const BoxConstraints(), // Quitar constraints por defecto
           ),
