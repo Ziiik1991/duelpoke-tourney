@@ -1,4 +1,4 @@
-// lib/models/participant.dart
+/// Representa a un participante individual en el torneo.
 class Participant {
   final String id;
   final String name;
@@ -15,8 +15,21 @@ class Participant {
   @override
   int get hashCode => id.hashCode;
 
-   @override
+  @override
   String toString() {
     return 'Participant{id: $id, name: $name}';
   }
+
+  // --- JSON Serialization
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'name': name};
+  }
+
+  factory Participant.fromJson(Map<String, dynamic> json) {
+    return Participant(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'ErrorName',
+    );
+  }
+  // --- Fin JSON Serialization ---
 }

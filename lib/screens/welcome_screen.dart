@@ -5,8 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/tournament_provider.dart';
 import 'register_participants_screen.dart';
 import '../services/audio_manager.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 
+/// Pantalla de bienvenida inicial de la aplicación.
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
   @override
@@ -17,6 +18,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Inicializar el gestor de audio al cargar la pantalla
     AudioManager.instance.init();
   }
 
@@ -25,19 +27,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     super.dispose();
   }
 
+  /// Reproduce el sonido de clic estándar.
   void _playClickSound() {
     AudioManager.instance.playClickSound();
   }
 
   @override
   Widget build(BuildContext context) {
-    final tournamentProvider = Provider.of<TournamentProvider>(context, listen: false);
+    final tournamentProvider = Provider.of<TournamentProvider>(
+      context,
+      listen: false,
+    );
+    // Calcular dimensiones relativas a la pantalla
     final screenWidth = MediaQuery.of(context).size.width;
     final buttonWidth = screenWidth * 0.4;
     const double buttonFontSize = 20.0;
 
+    if (kDebugMode) print("Building WelcomeScreen");
+
     return Scaffold(
       body: Container(
+        // Imagen de fondo
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/background_welcome.png'),
@@ -46,18 +56,31 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         ),
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 50.0),
+            // Permite scroll si el contenido excede la altura
+            padding: const EdgeInsets.symmetric(
+              horizontal: 30.0,
+              vertical: 50.0,
+            ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Centrar verticalmente
+              crossAxisAlignment:
+                  CrossAxisAlignment.center, // Centrar horizontalmente
               children: <Widget>[
+                // Logo de la aplicación
                 Image.asset(
                   'assets/images/logo.png',
                   height: 120,
-                  errorBuilder: (c, e, s) => const Icon(Icons.shield_outlined,
-                      size: 100, color: Colors.white70),
+
+                  errorBuilder:
+                      (c, e, s) => const Icon(
+                        Icons.shield_outlined,
+                        size: 100,
+                        color: Colors.white70,
+                      ),
                 ),
-                const SizedBox(height: 60),
+                const SizedBox(height: 60), // Espacio vertical
+                // Botón "Nuevo Torneo"
                 SizedBox(
                   width: buttonWidth,
                   child: ElevatedButton.icon(
@@ -70,25 +93,34 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ),
                     onPressed: () {
+                      if (kDebugMode) print("Nuevo Torneo button pressed");
                       _playClickSound();
-                      AudioManager.instance.stopBackgroundMusic();
-                      tournamentProvider.resetTournament();
-                      AudioManager.instance.playBackgroundMusic();
+                      AudioManager.instance
+                          .stopBackgroundMusic(); // Parar música anterior
+                      tournamentProvider
+                          .resetTournament(); // Reiniciar datos del torneo
+                      AudioManager.instance
+                          .playBackgroundMusic(); // Iniciar música nueva
+                      // Navegar a la pantalla de registro
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const RegisterParticipantsScreen()),
+                          builder:
+                              (context) => const RegisterParticipantsScreen(),
+                        ),
                       );
                     },
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 20), // Espacio entre botones
+                // Botón "Salir"
                 SizedBox(
                   width: buttonWidth,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.exit_to_app),
                     label: const Text('Salir'),
                     style: ElevatedButton.styleFrom(
+                      // Estilo personalizado
                       backgroundColor: Colors.red[800],
                       foregroundColor: Colors.white,
                       textStyle: GoogleFonts.lato(
@@ -97,13 +129,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ),
                     onPressed: () {
+                      if (kDebugMode) print("Salir button pressed");
                       _playClickSound();
+                      // Salir de la app (solo funciona en móvil/escritorio)
                       if (!kIsWeb) {
+                        if (kDebugMode) {
+                          print("Attempting SystemNavigator.pop()");
+                        }
                         SystemNavigator.pop();
                       } else {
+                        // En web, mostrar mensaje
+                        if (kDebugMode) {
+                          print("Cannot pop on web, showing SnackBar.");
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text("Cierra la pestaña del navegador para salir.")),
+                            content: Text(
+                              "Cierra la pestaña del navegador para salir.",
+                            ),
+                          ),
                         );
                       }
                     },
