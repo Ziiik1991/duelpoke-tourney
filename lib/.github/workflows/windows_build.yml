@@ -1,0 +1,60 @@
+# Nombre del Workflow (aparecerá en la pestaña Actions de GitHub)
+name: Build Flutter Windows App
+
+# ¿Cuándo se ejecuta este workflow?
+on:
+  # Cuando haces push a la rama 'main'
+  push:
+    branches: [ main ]
+  # También permite ejecutarlo manualmente desde la pestaña Actions
+  workflow_dispatch:
+
+# Definición de los trabajos (jobs) a ejecutar
+jobs:
+  # Nombre del trabajo (puede ser cualquiera)
+  build-windows:
+    # Usar una máquina virtual Windows proporcionada por GitHub
+    runs-on: windows-latest
+
+    # Pasos que se ejecutarán en la máquina virtual
+    steps:
+      # 1. Descargar tu código del repositorio
+      - name: Checkout code
+        uses: actions/checkout@v4 # Acción predefinida para descargar código
+
+      # 2. Configurar el entorno de Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2 # Acción popular para configurar Flutter
+        with:
+          channel: 'stable' # Usar el canal estable de Flutter (puedes cambiarlo)
+          # flutter-version: '3.x.x' # Opcional: especificar una versión exacta
+
+      # 3. Habilitar soporte de escritorio Windows (por si acaso)
+      #    Aunque tu proyecto ya debería tenerlo, no hace daño asegurarlo en la CI
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      # 4. Obtener las dependencias de Flutter (como flutter pub get)
+      - name: Get dependencies
+        run: flutter pub get
+
+      # 5. Construir la aplicación para Windows en modo Release
+      #    Esto asume que las herramientas de C++ de Visual Studio están en el runner
+      #    (normalmente lo están en windows-latest de GitHub Actions)
+      - name: Build Windows Release
+        run: flutter build windows --release # Compila la versión final
+
+      # 6. Empaquetar la salida en un archivo Zip
+      #    La salida está usualmente en build\windows\runner\Release
+      #    Usamos PowerShell (disponible en runners Windows) para crear el Zip
+      - name: Package Release Build
+        run: Compress-Archive -Path build\windows\runner\Release\* -DestinationPath duelpoke_tourney_windows.zip
+        shell: powershell # Especificar que este comando usa PowerShell
+
+      # 7. Subir el archivo Zip como un "artefacto" del build
+      #    Esto te permite descargarlo desde la página del workflow en GitHub
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4 # Acción predefinida para subir artefactos
+        with:
+          name: windows-build-artifact # Nombre del artefacto en GitHub
+          path: duelpoke_tourney_windows.zip # Ruta al archivo Zip que creamos
