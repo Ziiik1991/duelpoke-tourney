@@ -42,29 +42,33 @@ jobs:
         run: flutter build windows --release # Compila la versión final
 
       # --- PASO DE DIAGNÓSTICO CON SCRIPT POWERSHELL CORREGIDO ---
-      # 6a. Verificar y Listar Salida del Build
+      # 6a. Verificar y Listar Salida del Build (Variable en String Corregida)
       - name: Check Build Output
         run: |
           $outputPath = "build\windows\x64\runner\Release"
           if (Test-Path -Path $outputPath) {
             # El directorio existe, mostrar contenido (caso éxito)
-            Write-Host "Build output found at $outputPath. Contents:"
+            # Usar ${} por consistencia, aunque $outputPath probablemente funcionaría solo
+            Write-Host "Build output found at ${outputPath}. Contents:"
             Get-ChildItem -Path $outputPath -Recurse
           } else {
             # El directorio NO existe, mostrar error y revisar padres
-            Write-Error "¡ERROR! Build output directory '$outputPath' not encontrado."
+            Write-Error "¡ERROR! Build output directory '$outputPath' no encontrado."
 
             $parentPath1 = "build\windows\x64\runner"
             if (Test-Path -Path $parentPath1) {
-              Write-Host "Contents of $parentPath1:"
+              # --- CORRECCIÓN AQUÍ: Usar ${} ---
+              Write-Host "Contents of ${parentPath1}:"
               Get-ChildItem -Path $parentPath1
             } else {
               # Si tampoco existe runner, revisar build\windows
               $parentPath2 = "build\windows"
               if (Test-Path -Path $parentPath2) {
-                Write-Host "Contents of $parentPath2:"
+                 # --- CORRECCIÓN AQUÍ: Usar ${} ---
+                Write-Host "Contents of ${parentPath2}:"
                 Get-ChildItem -Path $parentPath2
               } else {
+                # No se encontraron carpetas padre relevantes
                 Write-Host "'$parentPath1' and '$parentPath2' not found."
               }
             }
