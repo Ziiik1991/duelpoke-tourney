@@ -6,7 +6,7 @@ on:
   # Cuando haces push a la rama 'main'
   push:
     branches: [ main ]
-  # También permite ejecutarlo manualmente desde la pestaña Actions
+  # También permite ejecutarlo manually desde la pestaña Actions
   workflow_dispatch:
 
 # Definición de los trabajos (jobs) a ejecutar
@@ -30,7 +30,6 @@ jobs:
           # flutter-version: '3.x.x' # Opcional: especificar una versión exacta
 
       # 3. Habilitar soporte de escritorio Windows (por si acaso)
-      #    Aunque tu proyecto ya debería tenerlo, no hace daño asegurarlo en la CI
       - name: Enable Windows Desktop
         run: flutter config --enable-windows-desktop
 
@@ -39,22 +38,43 @@ jobs:
         run: flutter pub get
 
       # 5. Construir la aplicación para Windows en modo Release
-      #    Esto asume que las herramientas de C++ de Visual Studio están en el runner
-      #    (normalmente lo están en windows-latest de GitHub Actions)
       - name: Build Windows Release
         run: flutter build windows --release # Compila la versión final
 
-      # 6. Empaquetar la salida en un archivo Zip
-      #    La salida está usualmente en build\windows\runner\Release
-      #    Usamos PowerShell (disponible en runners Windows) para crear el Zip
-      - name: Package Release Build
-        run: Compress-Archive -Path build\windows\runner\Release\* -DestinationPath duelpoke_tourney_windows.zip
-        shell: powershell # Especificar que este comando usa PowerShell
+      # --- PASO DE DIAGNÓSTICO CORREGIDO (con x64) ---
+      # 6a. Verificar y Listar Salida del Build
+      - name: Check Build Output
+        run: |
+          $outputPath = "build\windows\x64\runner\Release" # <-- RUTA CORREGIDA con x64
+          if (Test-Path -Path $outputPath) {
+            Write-Host "Directorio de salida encontrado en $outputPath. Contenido:"
+            Get-ChildItem -Path $outputPath -Recurse # Listar contenido
+          } else {
+            # Si no existe, mostrar qué hay en carpetas superiores y fallar
+            Write-Error "¡ERROR! Directorio de salida '$outputPath' no encontrado."
+            if (Test-Path -Path "build\windows\x64\runner") {
+              Write-Host "Contenido de build\windows\x64\runner:"
+              Get-ChildItem -Path "build\windows\x64\runner"
+            } else if (Test-Path -Path "build\windows") {
+               Write-Host "Contenido de build\windows:"
+               Get-ChildItem -Path "build\windows"
+            }
+             else {
+               Write-Host "'build\windows\x64\runner' no encontrado."
+            }
+            exit 1 # Hacer que el workflow falle aquí
+          }
+        shell: powershell # Ejecutar con PowerShell
 
-      # 7. Subir el archivo Zip como un "artefacto" del build
-      #    Esto te permite descargarlo desde la página del workflow en GitHub
+      # --- PASO DE EMPAQUETADO CORREGIDO (con x64) ---
+      # 6b. Empaquetar la carpeta Release
+      - name: Package Release Build
+        run: Compress-Archive -Path build\windows\x64\runner\Release -DestinationPath duelpoke_tourney_windows.zip -Force # <-- RUTA CORREGIDA con x64
+        shell: powershell # Ejecutar con PowerShell
+
+      # 7. Subir el artefacto (Sin cambios en la acción misma)
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4 # Acción predefinida para subir artefactos
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build-artifact # Nombre del artefacto en GitHub
           path: duelpoke_tourney_windows.zip # Ruta al archivo Zip que creamos
