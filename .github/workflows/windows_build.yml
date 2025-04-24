@@ -6,7 +6,7 @@ on:
   # Cuando haces push a la rama 'main'
   push:
     branches: [ main ]
-  # También permite ejecutarlo manually desde la pestaña Actions
+  # También permite ejecutarlo manualmente desde la pestaña Actions
   workflow_dispatch:
 
 # Definición de los trabajos (jobs) a ejecutar
@@ -41,35 +41,41 @@ jobs:
       - name: Build Windows Release
         run: flutter build windows --release # Compila la versión final
 
-      # --- PASO DE DIAGNÓSTICO CORREGIDO (con x64) ---
+      # --- PASO DE DIAGNÓSTICO CON SCRIPT POWERSHELL CORREGIDO ---
       # 6a. Verificar y Listar Salida del Build
       - name: Check Build Output
         run: |
-          $outputPath = "build\windows\x64\runner\Release" # <-- RUTA CORREGIDA con x64
+          $outputPath = "build\windows\x64\runner\Release"
           if (Test-Path -Path $outputPath) {
-            Write-Host "Directorio de salida encontrado en $outputPath. Contenido:"
-            Get-ChildItem -Path $outputPath -Recurse # Listar contenido
+            # El directorio existe, mostrar contenido (caso éxito)
+            Write-Host "Build output found at $outputPath. Contents:"
+            Get-ChildItem -Path $outputPath -Recurse
           } else {
-            # Si no existe, mostrar qué hay en carpetas superiores y fallar
-            Write-Error "¡ERROR! Directorio de salida '$outputPath' no encontrado."
-            if (Test-Path -Path "build\windows\x64\runner") {
-              Write-Host "Contenido de build\windows\x64\runner:"
-              Get-ChildItem -Path "build\windows\x64\runner"
-            } else if (Test-Path -Path "build\windows") {
-               Write-Host "Contenido de build\windows:"
-               Get-ChildItem -Path "build\windows"
+            # El directorio NO existe, mostrar error y revisar padres
+            Write-Error "¡ERROR! Build output directory '$outputPath' not encontrado."
+
+            $parentPath1 = "build\windows\x64\runner"
+            if (Test-Path -Path $parentPath1) {
+              Write-Host "Contents of $parentPath1:"
+              Get-ChildItem -Path $parentPath1
+            } else {
+              # Si tampoco existe runner, revisar build\windows
+              $parentPath2 = "build\windows"
+              if (Test-Path -Path $parentPath2) {
+                Write-Host "Contents of $parentPath2:"
+                Get-ChildItem -Path $parentPath2
+              } else {
+                Write-Host "'$parentPath1' and '$parentPath2' not found."
+              }
             }
-             else {
-               Write-Host "'build\windows\x64\runner' no encontrado."
-            }
-            exit 1 # Hacer que el workflow falle aquí
+            exit 1 # Fallar el workflow porque faltaba el output
           }
         shell: powershell # Ejecutar con PowerShell
 
-      # --- PASO DE EMPAQUETADO CORREGIDO (con x64) ---
+      # --- PASO DE EMPAQUETADO (Sin asterisco y con ruta corregida) ---
       # 6b. Empaquetar la carpeta Release
       - name: Package Release Build
-        run: Compress-Archive -Path build\windows\x64\runner\Release -DestinationPath duelpoke_tourney_windows.zip -Force # <-- RUTA CORREGIDA con x64
+        run: Compress-Archive -Path build\windows\x64\runner\Release -DestinationPath duelpoke_tourney_windows.zip -Force
         shell: powershell # Ejecutar con PowerShell
 
       # 7. Subir el artefacto (Sin cambios en la acción misma)
