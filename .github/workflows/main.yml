@@ -1,0 +1,39 @@
+# --- Pasos anteriores (checkout, setup flutter, pub get, build) sin cambios ---
+
+      # 5. Build Windows (Asegúrate que este paso termine SIN errores)
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      # --- NUEVO PASO DE DIAGNÓSTICO ---
+      # 6a. Verificar y Listar Salida del Build
+      - name: Check Build Output
+        run: |
+          $outputPath = "build\windows\runner\Release"
+          if (Test-Path -Path $outputPath) {
+            Write-Host "Directorio de salida encontrado en $outputPath. Contenido:"
+            Get-ChildItem -Path $outputPath -Recurse # Listar contenido
+          } else {
+            # Si no existe, mostrar qué hay en la carpeta superior y fallar
+            Write-Error "¡ERROR! Directorio de salida '$outputPath' no encontrado."
+            if (Test-Path -Path "build\windows\runner") {
+              Write-Host "Contenido de build\windows\runner:"
+              Get-ChildItem -Path "build\windows\runner"
+            } else {
+               Write-Host "'build\windows\runner' tampoco encontrado."
+            }
+            exit 1 # Hacer que el workflow falle aquí
+          }
+        shell: powershell # Ejecutar con PowerShell
+
+      # --- PASO DE EMPAQUETADO CORREGIDO ---
+      # 6b. Empaquetar la carpeta Release (SIN el '\*')
+      - name: Package Release Build
+        run: Compress-Archive -Path build\windows\runner\Release -DestinationPath duelpoke_tourney_windows.zip -Force
+        shell: powershell # Ejecutar con PowerShell
+
+      # 7. Subir el artefacto (Sin cambios)
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-artifact
+          path: duelpoke_tourney_windows.zip
