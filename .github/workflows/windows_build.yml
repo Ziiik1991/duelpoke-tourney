@@ -11,80 +11,68 @@ on:
 
 # Definición de los trabajos (jobs) a ejecutar
 jobs:
-  # Nombre del trabajo (puede ser cualquiera)
   build-windows:
     # Usar una máquina virtual Windows proporcionada por GitHub
     runs-on: windows-latest
 
-    # Pasos que se ejecutarán en la máquina virtual
     steps:
       # 1. Descargar tu código del repositorio
       - name: Checkout code
-        uses: actions/checkout@v4 # Acción predefinida para descargar código
+        uses: actions/checkout@v4
 
       # 2. Configurar el entorno de Flutter
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2 # Acción popular para configurar Flutter
+        uses: subosito/flutter-action@v2
         with:
-          channel: 'stable' # Usar el canal estable de Flutter (puedes cambiarlo)
-          # flutter-version: '3.x.x' # Opcional: especificar una versión exacta
+          channel: 'stable' # Usar el canal estable
+          # flutter-version: '3.x.x' # Opcional: especificar versión exacta
 
       # 3. Habilitar soporte de escritorio Windows (por si acaso)
       - name: Enable Windows Desktop
         run: flutter config --enable-windows-desktop
 
-      # 4. Obtener las dependencias de Flutter (como flutter pub get)
+      # 4. Obtener las dependencias de Flutter
       - name: Get dependencies
         run: flutter pub get
 
       # 5. Construir la aplicación para Windows en modo Release
       - name: Build Windows Release
-        run: flutter build windows --release # Compila la versión final
+        run: flutter build windows --release
 
-      # --- PASO DE DIAGNÓSTICO CON SCRIPT POWERSHELL CORREGIDO ---
-      # 6a. Verificar y Listar Salida del Build (Variable en String Corregida)
+      # 6a. Verificar y listar la salida del build
       - name: Check Build Output
         run: |
-          $outputPath = "build\windows\x64\runner\Release"
+          $outputPath = "build\windows\runner\Release"
           if (Test-Path -Path $outputPath) {
-            # El directorio existe, mostrar contenido (caso éxito)
-            # Usar ${} por consistencia, aunque $outputPath probablemente funcionaría solo
             Write-Host "Build output found at ${outputPath}. Contents:"
             Get-ChildItem -Path $outputPath -Recurse
           } else {
-            # El directorio NO existe, mostrar error y revisar padres
             Write-Error "¡ERROR! Build output directory '$outputPath' no encontrado."
-
-            $parentPath1 = "build\windows\x64\runner"
+            $parentPath1 = "build\windows\runner"
             if (Test-Path -Path $parentPath1) {
-              # --- CORRECCIÓN AQUÍ: Usar ${} ---
               Write-Host "Contents of ${parentPath1}:"
               Get-ChildItem -Path $parentPath1
             } else {
-              # Si tampoco existe runner, revisar build\windows
               $parentPath2 = "build\windows"
               if (Test-Path -Path $parentPath2) {
-                 # --- CORRECCIÓN AQUÍ: Usar ${} ---
                 Write-Host "Contents of ${parentPath2}:"
                 Get-ChildItem -Path $parentPath2
               } else {
-                # No se encontraron carpetas padre relevantes
                 Write-Host "'$parentPath1' and '$parentPath2' not found."
               }
             }
-            exit 1 # Fallar el workflow porque faltaba el output
+            exit 1
           }
-        shell: powershell # Ejecutar con PowerShell
+        shell: powershell
 
-      # --- PASO DE EMPAQUETADO (Sin asterisco y con ruta corregida) ---
-      # 6b. Empaquetar la carpeta Release
+      # 6b. Empaquetar la carpeta Release en un ZIP
       - name: Package Release Build
-        run: Compress-Archive -Path build\windows\x64\runner\Release -DestinationPath duelpoke_tourney_windows.zip -Force
-        shell: powershell # Ejecutar con PowerShell
+        run: Compress-Archive -Path build\windows\runner\Release -DestinationPath duelpoke_tourney_windows.zip -Force
+        shell: powershell
 
-      # 7. Subir el artefacto (Sin cambios en la acción misma)
+      # 7. Subir el artefacto ZIP como output del workflow
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build-artifact # Nombre del artefacto en GitHub
-          path: duelpoke_tourney_windows.zip # Ruta al archivo Zip que creamos
+          name: windows-build-artifact
+          path: duelpoke_tourney_windows.zip
